@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenKumite: Tekken 2 data viewer</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8b93a7; --accent:#3ca0ff; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:13px/1.4 system-ui,-apple-system,Segoe UI,sans-serif; }
+  #app { display:grid; grid-template-columns:280px 1fr; height:100%; }
+  aside { background:var(--panel); border-right:1px solid var(--line); padding:14px; overflow:auto; display:flex; flex-direction:column; gap:14px; }
+  h1 { font-size:15px; margin:0; letter-spacing:.02em; } h1 span { color:var(--accent); }
+  label { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+  select,input[type=range] { width:100%; }
+  select { background:#0f1115; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button { background:#232835; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .chk { display:flex; gap:6px; align-items:center; color:var(--text); text-transform:none; letter-spacing:0; font-size:13px; }
+  #stage { position:relative; }
+  canvas { display:block; }
+  #hud { position:absolute; left:12px; bottom:10px; color:var(--muted); font:12px ui-monospace,Menlo,monospace; pointer-events:none; }
+  #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); text-align:center; padding:24px; pointer-events:none; }
+  #drop { position:absolute; inset:12px; border:2px dashed var(--accent); border-radius:12px; display:none; align-items:center; justify-content:center; color:var(--accent); font-size:16px; pointer-events:none; }
+  .note { color:var(--muted); font-size:12px; margin:0; }
+  code { font-size:11px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .tabs button { border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--muted); padding:6px 10px; }
+  .tabs button.on { color:var(--text); border-bottom-color:var(--accent); }
+  .panel { display:flex; flex-direction:column; gap:14px; }
+  .panel[hidden] { display:none; }
+  #media { position:absolute; inset:0; overflow:auto; padding:20px 24px; display:none; background:var(--bg); }
+  #media.on { display:block; }
+  #media h2 { font-size:15px; margin:0 0 12px; font-weight:600; }
+  .list { display:flex; flex-direction:column; gap:2px; }
+  .item { display:flex; gap:10px; align-items:center; justify-content:space-between; text-align:left; width:100%; padding:7px 10px; border-radius:6px;
+          background:none; border:1px solid transparent; color:var(--text); }
+  .item:hover { border-color:var(--line); } .item.on { border-color:var(--accent); background:#232835; }
+  .item small { color:var(--muted); font:11px ui-monospace,Menlo,monospace; }
+  .sfx-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .sfx-grid button { text-align:left; padding:10px; } .sfx-grid button small { display:block; color:var(--muted); font:11px ui-monospace,Menlo,monospace; margin-top:2px; }
+  .sfx-grid button.playing { border-color:var(--accent); }
+  #media audio { width:100%; margin-bottom:14px; }
+  #media img.movie { display:block; width:100%; max-height:calc(100vh - 140px); background:#000; image-rendering:pixelated; object-fit:contain; }
+  .pic-grid { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+  .pic-grid figure { margin:0; display:flex; flex-direction:column; gap:4px; max-width:100%; }
+  .pic-grid img { image-rendering:pixelated; background:#000; display:block; cursor:zoom-in; max-width:100%; height:auto; }
+  .pic-grid figcaption { color:var(--muted); font:11px ui-monospace,Menlo,monospace; }
+  #pic-big { position:absolute; inset:0; background:rgba(0,0,0,.92); display:none; align-items:center; justify-content:center; cursor:zoom-out; }
+  #pic-big img { image-rendering:pixelated; max-width:96%; max-height:96%; }
+  .vlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:4px; margin-top:14px; }
+  @media (max-width:720px){ #app{grid-template-columns:1fr; grid-template-rows:auto 1fr;} aside{border-right:0;border-bottom:1px solid var(--line);max-height:45vh;} }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <h1>OPENKUMITE · TEKKEN <span>2</span> viewer</h1>
+    <div class="tabs" role="tablist"><button id="tab-chars" class="on" role="tab">Characters</button><button id="tab-sfx" role="tab">Sounds</button><button id="tab-music" role="tab">Music</button><button id="tab-video" role="tab">Video</button><button id="tab-pics" role="tab">Pictures</button><button id="tab-arenas" role="tab">Arenas</button></div>
+    <div id="arena-panel" class="panel" hidden>
+      <div><label>Arena <span id="arenacount"></span></label><select id="arena"></select></div>
+      <div class="row"><button id="aprev">◀</button><button id="anext">▶</button><button id="aspin">Turn</button></div>
+      <label class="chk"><input type="checkbox" id="afighters" checked> Two fighters (2 m apart)</label>
+      <label class="chk"><input type="checkbox" id="ashade" checked> Floor shading (EXE rules)</label>
+      <label class="chk"><input type="checkbox" id="agame" checked> Game camera lens (H = 955)</label>
+      <p class="note">The 23 arenas converted by <code>t2_converter/src/export_stages.rs</code>: the 10 × 10 floor patch
+        and the panorama as the game scrolls it (6144 px a turn, its bottom a fixed number of lines under the horizon),
+        with the sky and ground fills behind it.</p>
+      <div id="ainfo" class="note"></div>
+    </div>
+    <div id="pics-panel" class="panel" hidden>
+      <div><label>Picture set <span id="piccount"></span></label><select id="picset"></select></div>
+      <div class="row"><button id="picprev">◀</button><button id="picnext">▶</button></div>
+      <div><label>Zoom</label><select id="piczoom"><option value="0" selected>Auto</option><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></div>
+      <p class="note">Every TIM in the EXE and the system records (plain and LZ-packed), with its own palette; and the
+        stage panoramas: one period of each stage’s rows of 64 × 32 cells, as the game lays them.</p>
+    </div>
+    <div id="sfx-panel" class="panel" hidden>
+      <div><label>Sound bank <span id="sfxcount"></span></label><select id="sfxbank"></select></div>
+      <div class="row"><button id="sfxprev">◀</button><button id="sfxnext">▶</button><button id="sfxall">Play all</button><button id="sfxstop">Stop</button></div>
+      <p class="note">The VAB banks: two system banks, record 5's, and each character block's, decoded from SPU ADPCM
+        at the rate their tones play.</p>
+    </div>
+    <div id="music-panel" class="panel" hidden>
+      <div class="row"><button id="mprev">◀</button><button id="mplay">Play</button><button id="mnext">▶</button></div>
+      <label class="chk"><input type="checkbox" id="mauto" checked> Play the next track automatically</label>
+      <p class="note">The XA streams of TEKKEN2.XAS (8 channels, split at their end-of-file sectors) and the CD audio tracks.</p>
+    </div>
+    <div id="video-panel" class="panel" hidden>
+      <label class="chk"><input type="checkbox" id="vsmooth"> Smooth scaling</label>
+      <p class="note">The STR movies (MDEC video + XA audio), as Motion-JPEG frames (AVI) and a FLAC soundtrack.</p>
+    </div>
+    <div id="char-panel" class="panel">
+    <div><label>Character</label><select id="model"></select></div>
+    <div class="row"><button id="open">Open .glb…</button><input id="file" type="file" accept=".glb,.gltf" hidden></div>
+    <div><label>Animation <span id="mcount"></span></label><select id="motion"></select></div>
+    <div class="row"><button id="play">Pause</button><button id="prev">◀</button><button id="next">▶</button><button id="rnd">Random</button></div>
+    <div><label>Frame <span id="flabel"></span></label><input id="frame" type="range" min="0" max="1" value="0"></div>
+    <div><label>Speed <span id="slabel">1.0×</span></label><input id="speed" type="range" min="0.1" max="2" step="0.1" value="1"></div>
+    <div>
+      <label class="chk"><input type="checkbox" id="lockroot" checked> Keep root in place (XZ)</label>
+      <label class="chk"><input type="checkbox" id="filter"> Smooth textures</label>
+      <label class="chk"><input type="checkbox" id="lit" checked> Lighting</label>
+      <label class="chk"><input type="checkbox" id="wire"> Wireframe</label>
+      <label class="chk"><input type="checkbox" id="bones"> Show skeleton</label>
+      <label class="chk"><input type="checkbox" id="twosided"> Show back faces (off = PS1 one-sided culling)</label>
+    </div>
+    <p class="note">Tekken 2 characters converted by <code>t2_converter/src/export_characters.rs</code> from your own
+      disc: 47 models (two costumes per character), every motion decoded by the game's own routine. Serve this
+      folder with <code>target/release/serve 8767</code> (port 8767). Drop any <code>.glb</code> onto the page to view it.</p>
+      </div>
+  </aside>
+  <div id="stage"><div id="msg">Loading…</div><div id="drop">Drop .glb file</div><div id="hud"></div><div id="media"></div></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const FPS = 60;
+const $ = id => document.getElementById(id);
+const stage=$('stage'), msg=$('msg'), hud=$('hud');
+const renderer=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true}); renderer.setPixelRatio(devicePixelRatio);
+renderer.outputColorSpace=THREE.SRGBColorSpace; stage.appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0f1115); const fog=new THREE.Fog(0x0f1115,4,14); scene.fog=fog;
+const camera=new THREE.PerspectiveCamera(40,1,0.05,400); camera.position.set(2.2,1.4,3.0);
+const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,0.9,0); controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x334,1.1));
+const sun=new THREE.DirectionalLight(0xffffff,1.6); sun.position.set(2,4,3); scene.add(sun);
+scene.add(new THREE.GridHelper(10,20,0x444a58,0x252a35));
+function resize(){ const r=stage.getBoundingClientRect(); renderer.setSize(r.width,r.height); camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+
+const loader=new GLTFLoader();
+let cur=null;            // {root, mixer, clips, action, rootName, helper, name, clipIndex}
+let list=[], playing=true;
+
+function dispose(){ if(!cur) return; scene.remove(cur.root); if(cur.helper) scene.remove(cur.helper);
+  cur.root.traverse(o=>{ if(o.isMesh){ o.geometry.dispose(); [].concat(o.material).forEach(m=>{ m.map&&m.map.dispose(); m.dispose(); }); } }); cur=null; }
+
+// The root bone's X/Z translation is root motion; optionally strip it so the character stays centred.
+function prepareClip(clip, rootName, lock){
+  const c=clip.clone();
+  if(lock) for(const t of c.tracks) if(t.name===rootName+'.position'){ const v=t.values; for(let i=0;i<v.length;i+=3){ v[i]=0; v[i+2]=0; } }
+  return c;
+}
+function frameModel(){
+  const box=new THREE.Box3().setFromObject(cur.root), c=box.getCenter(new THREE.Vector3()), sz=box.getSize(new THREE.Vector3());
+  const r=Math.max(sz.x,sz.y,sz.z)*0.5+0.2, dist=r/Math.sin(THREE.MathUtils.degToRad(camera.fov/2))*1.1;
+  controls.target.copy(c); camera.position.copy(c).add(new THREE.Vector3(0.55,0.25,0.8).normalize().multiplyScalar(dist));
+  fog.near=dist*1.5; fog.far=dist*5; controls.update();
+}
+function updateMaterial(){ if(!cur) return;
+  cur.root.traverse(o=>{ if(!o.isMesh||o.name==='shadow') return;
+    const old=o.material, M=$('lit').checked?THREE.MeshLambertMaterial:THREE.MeshBasicMaterial;
+    const side=old.userData.side ?? old.side;
+    const m=new M({map:old.map, side:$('twosided').checked?THREE.DoubleSide:side, alphaTest:0.5, wireframe:$('wire').checked}); m.userData.side=side;
+    if(m.map){ m.map.magFilter=m.map.minFilter=$('filter').checked?THREE.LinearFilter:THREE.NearestFilter; m.map.needsUpdate=true; }
+    o.material=m; old.dispose(); });
+  if(cur.helper) cur.helper.visible=$('bones').checked;
+}
+function setClip(i){ if(!cur||!cur.clips.length) return;
+  cur.clipIndex=(i+cur.clips.length)%cur.clips.length; $('motion').value=cur.clipIndex;
+  if(cur.action) cur.action.stop();
+  const clip=prepareClip(cur.clips[cur.clipIndex], cur.rootName, $('lockroot').checked);
+  cur.action=cur.mixer.clipAction(clip); cur.action.play(); cur.mixer.update(0);
+  $('frame').max=Math.round(clip.duration*FPS); }
+
+async function loadGLB(src, name){
+  msg.style.display='flex'; msg.textContent=`Loading ${name}…`;
+  let gltf;
+  try { gltf = typeof src==='string' ? await loader.loadAsync(src+'?v='+Date.now()) : await new Promise((res,rej)=>loader.parse(src,'',res,rej)); }
+  catch(e){ msg.textContent='Could not load '+name+': '+e.message; return; }
+  dispose();
+  const root=gltf.scene; scene.add(root);
+  let skinned=null; root.traverse(o=>{ if(o.isSkinnedMesh){ if(!skinned) skinned=o; o.frustumCulled=false; } });
+  root.traverse(o=>{ if(o.isMesh&&o.name==='shadow') o.visible=false; });   // the shadow hull: drawn on the arenas only
+  let wings=null; root.traverse(o=>{ if(o.isMesh&&o.morphTargetInfluences&&o.userData.clips) wings=o; });
+  const rootName = skinned ? skinned.skeleton.bones[0].name : '';
+  const helper=new THREE.SkeletonHelper(root); scene.add(helper);
+  cur={root, mixer:new THREE.AnimationMixer(root), clips:gltf.animations, rootName, helper, name, clipIndex:0, wings, wingT:0};
+  updateMaterial();
+  $('motion').innerHTML=cur.clips.map((c,i)=>`<option value="${i}">${c.name} · ${Math.round(c.duration*FPS)+1} frames</option>`).join('');
+  $('mcount').textContent=`(${cur.clips.length})`;
+  setClip(0); frameModel();
+  msg.style.display='none';
+}
+
+$('model').onchange=()=>{ const e=list[$('model').selectedIndex]; loadGLB('models/'+e.file, e.name); };
+$('motion').onchange=()=>setClip(+$('motion').value);
+$('play').onclick=()=>{ playing=!playing; $('play').textContent=playing?'Pause':'Play'; };
+$('prev').onclick=()=>cur&&setClip(cur.clipIndex-1); $('next').onclick=()=>cur&&setClip(cur.clipIndex+1);
+$('rnd').onclick=()=>cur&&setClip(Math.floor(Math.random()*cur.clips.length));
+$('frame').oninput=()=>{ if(!cur||!cur.action) return; playing=false; $('play').textContent='Play'; cur.action.time=+$('frame').value/FPS; cur.mixer.update(0); };
+$('speed').oninput=()=>$('slabel').textContent=(+$('speed').value).toFixed(1)+'×';
+for(const k of ['filter','lit','wire','bones','twosided']) $(k).onchange=updateMaterial;
+$('lockroot').onchange=()=>cur&&setClip(cur.clipIndex);
+$('open').onclick=()=>$('file').click();
+$('file').onchange=async e=>{ const f=e.target.files[0]; if(f) loadGLB(await f.arrayBuffer(), f.name); };
+addEventListener('dragover',e=>{ e.preventDefault(); $('drop').style.display='flex'; });
+addEventListener('dragleave',e=>{ if(!e.relatedTarget) $('drop').style.display='none'; });
+addEventListener('drop',async e=>{ e.preventDefault(); $('drop').style.display='none'; const f=e.dataTransfer.files[0]; if(f) loadGLB(await f.arrayBuffer(), f.name); });
+
+fetch('models/index.json',{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(l=>{
+  list=l; $('model').innerHTML=l.map(e=>`<option>${e.name} (#${e.id})</option>`).join('');
+  if(l.length) loadGLB('models/'+l[0].file, l[0].name);
+}).catch(()=>{ msg.innerHTML='No model list found. Serve this folder with <code>target/release/serve 8767</code> after running<br><code>t2_convert "Tekken 2 (USA) (v1.1) (Track 1).bin"</code><br>or drop a .glb file here.'; });
+
+
+// ---- tabs: characters and the media (files from t2_converter/src/export_media.rs) ----
+const PANELS={chars:'char-panel', sfx:'sfx-panel', music:'music-panel', video:'video-panel', pics:'pics-panel', arenas:'arena-panel'};
+const TABS=Object.keys(PANELS);
+let tab='chars';
+function setTab(t){ tab=t;
+  for(const k of TABS){ $('tab-'+k).classList.toggle('on',k===t); $(PANELS[k]).hidden=k!==t; }
+  const isMedia=t!=='chars'&&t!=='arenas';
+  $('media').classList.toggle('on',isMedia); hud.style.display=isMedia?'none':'';
+  if(!isMedia) stopMedia();
+  arenaMode(t==='arenas'); if(t==='arenas') hud.style.display='none';
+  if(t==='pics') showPics(); else if(isMedia) showMedia(t); else if(t==='chars'&&cur) frameModel(); }
+for(const k of TABS) $('tab-'+k).onclick=()=>setTab(k);
+let media={}, sfxBank=0, track=-1, movie=0, sfxAudio=null, sfxQueue=null, picSet=0;
+const mediaEl=$('media'), esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=sec=>{ const s=Math.round(sec); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+const mediaReady=fetch('media/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).catch(()=>({})).then(m=>{ media=m;
+  for(const [k,n] of [['sfx',(m.sfx||[]).length],['music',(m.music||[]).length],['video',(m.video||[]).length],['pics',(m.pictures||[]).length]]) if(!n) $('tab-'+k).disabled=true;
+  $('sfxbank').innerHTML=(m.sfx||[]).map((b,i)=>`<option value="${i}">${esc(b.name)}</option>`).join('');
+  $('sfxcount').textContent=`(${(m.sfx||[]).length})`;
+  $('picset').innerHTML=(m.pictures||[]).map((p,i)=>`<option value="${i}">${esc(p.name)} (${p.images.length})</option>`).join('');
+  $('piccount').textContent=`(${(m.pictures||[]).length})`; });
+function stopMedia(){ if(sfxAudio){ sfxAudio.pause(); sfxAudio=null; } sfxQueue=null; mediaEl.querySelectorAll('audio,video').forEach(e=>e.pause()); }
+function playSfx(i){ const b=media.sfx[sfxBank], s=b.samples[i]; if(!s) return;
+  if(sfxAudio) sfxAudio.pause(); sfxAudio=new Audio('media/sfx/'+s.file); sfxAudio.play();
+  mediaEl.querySelectorAll('.sfx-grid button').forEach((e,j)=>e.classList.toggle('playing',j===i));
+  sfxAudio.onended=()=>{ mediaEl.querySelectorAll('.sfx-grid button').forEach(e=>e.classList.remove('playing'));
+    if(sfxQueue!==null&&i+1<b.samples.length) setTimeout(()=>sfxQueue!==null&&playSfx(i+1),250); else sfxQueue=null; }; }
+function showMedia(t){ mediaReady.then(()=>{ stopMedia();
+  if(t==='sfx'){ const b=media.sfx[sfxBank]; $('sfxbank').value=sfxBank;
+    mediaEl.innerHTML=`<h2>${esc(b.name)} · ${b.samples.length} sounds</h2><div class="sfx-grid">`+b.samples.map((s,i)=>
+      `<button data-i="${i}">Sound ${i+1}<small>${s.seconds.toFixed(2)} s · ${s.rate} Hz</small></button>`).join('')+'</div>';
+    mediaEl.querySelectorAll('.sfx-grid button').forEach(e=>e.onclick=()=>{ sfxQueue=null; playSfx(+e.dataset.i); }); }
+  if(t==='music'){
+    mediaEl.innerHTML=`<h2>Music · ${media.music.length} tracks</h2><audio id="mplayer" controls preload="none"></audio><div class="list">`+media.music.map((m,i)=>
+      `<button class="item" data-i="${i}"><span>${String(i+1).padStart(2,'0')} · ${esc(m.name)}</span><small>${fmt(m.seconds)}</small></button>`).join('')+'</div>';
+    mediaEl.querySelectorAll('.item').forEach(e=>e.onclick=()=>playTrack(+e.dataset.i));
+    $('mplayer').onended=()=>{ if($('mauto').checked) playTrack(track+1); };
+    $('mplayer').onplay=()=>$('mplay').textContent='Pause'; $('mplayer').onpause=()=>$('mplay').textContent='Play';
+    if(track>=0) markTrack(); }
+  if(t==='video'){
+    mediaEl.innerHTML=`<h2 id="vtitle"></h2><audio id="vaudio" controls preload="metadata"></audio><img id="vplayer" class="movie" alt=""><div class="vlist">`+media.video.map((v,i)=>
+      `<button class="item" data-i="${i}"><span>${esc(v.name)}</span><small>${fmt(v.seconds)} · ${v.fps} fps</small></button>`).join('')+'</div>';
+    mediaEl.querySelectorAll('.item').forEach(e=>e.onclick=()=>playMovie(+e.dataset.i,true));
+    playMovie(movie,false); requestAnimationFrame(showFrame); } }); }
+function markTrack(){ mediaEl.querySelectorAll('.item').forEach((e,j)=>e.classList.toggle('on',j===track)); }
+function playTrack(i){ const n=media.music.length; track=(i+n)%n; const a=$('mplayer'); if(!a) return;
+  a.src='media/music/'+media.music[track].file; a.play(); markTrack(); }
+// a movie: its AVI's '##dc' chunks (Motion-JPEG frames), each shown while the soundtrack is at its time
+let movieFrames=[], movieShown=-1, movieUrl=null;
+function aviFrames(b){ const d=new DataView(b), id=i=>String.fromCharCode(...new Uint8Array(b,i,4)), f=[];
+  for(let i=12;i+8<=b.byteLength;){ const n=d.getUint32(i+4,true);
+    if(id(i)==='LIST'){ i+=12; continue; }
+    if(id(i).endsWith('dc')&&i+8+n<=b.byteLength) f.push(new Blob([new Uint8Array(b,i+8,n)],{type:'image/jpeg'}));
+    i+=8+n+(n&1); }
+  return f; }
+function showFrame(){ const a=$('vaudio'); if(!a) return; requestAnimationFrame(showFrame);
+  const k=Math.min(movieFrames.length-1,Math.floor(a.currentTime*media.video[movie].fps));
+  if(k<0||k===movieShown) return;
+  movieShown=k; if(movieUrl) URL.revokeObjectURL(movieUrl); movieUrl=URL.createObjectURL(movieFrames[k]); $('vplayer').src=movieUrl; }
+async function playMovie(i,play){ const n=media.video.length; movie=(i+n)%n; const a=$('vaudio'), m=media.video[movie], want=movie; if(!a) return;
+  movieFrames=[]; a.src='media/video/'+m.audio_file; $('vplayer').style.imageRendering=$('vsmooth').checked?'auto':'pixelated';
+  $('vtitle').textContent=`${m.name} · ${m.frames} frames at ${m.fps} fps`;
+  mediaEl.querySelectorAll('.item').forEach((e,j)=>e.classList.toggle('on',j===movie)); if(play) a.play();
+  const b=await fetch('media/video/'+m.file).then(r=>r.arrayBuffer());
+  if(movie!==want) return;
+  movieFrames=aviFrames(b); movieShown=-1; }
+$('sfxbank').onchange=()=>{ sfxBank=+$('sfxbank').value; showMedia('sfx'); };
+$('sfxprev').onclick=()=>{ sfxBank=(sfxBank-1+media.sfx.length)%media.sfx.length; showMedia('sfx'); };
+$('sfxnext').onclick=()=>{ sfxBank=(sfxBank+1)%media.sfx.length; showMedia('sfx'); };
+$('sfxall').onclick=()=>{ sfxQueue=0; playSfx(0); }; $('sfxstop').onclick=stopMedia;
+$('mprev').onclick=()=>playTrack(track-1); $('mnext').onclick=()=>playTrack(track+1);
+$('mplay').onclick=()=>{ const a=$('mplayer'); if(!a) return; if(track<0) playTrack(0); else if(a.paused) a.play(); else a.pause(); };
+$('vsmooth').onchange=()=>{ const v=$('vplayer'); if(v) v.style.imageRendering=$('vsmooth').checked?'auto':'pixelated'; };
+function showPics(){ mediaReady.then(()=>{ const set=(media.pictures||[])[picSet]; if(!set) return; const z=+$('piczoom').value||(Math.max(...set.images.map(i=>i.w))>300?1:2); $('picset').value=picSet;
+  mediaEl.innerHTML=`<h2>${esc(set.name)} · ${set.images.length} pictures</h2><div class="pic-grid">`+set.images.map((im,i)=>
+    `<figure><img data-i="${i}" src="media/pictures/${im.file}" width="${im.w*z}" height="${im.h*z}" alt="${esc(im.name||im.file)}">
+     <figcaption>${im.name?esc(im.name)+' · ':''}${im.w}×${im.h}${im.bpp?' · '+im.bpp+'bpp':''}</figcaption></figure>`).join('')+'</div><div id="pic-big"><img alt=""></div>';
+  const big=$('pic-big');
+  mediaEl.querySelectorAll('.pic-grid img').forEach(e=>e.onclick=()=>{ big.firstChild.src=e.src; big.style.display='flex'; });
+  big.onclick=()=>big.style.display='none'; }); }
+$('picset').onchange=()=>{ picSet=+$('picset').value; showPics(); };
+$('picprev').onclick=()=>{ const n=(media.pictures||[]).length; picSet=(picSet-1+n)%n; showPics(); };
+$('picnext').onclick=()=>{ const n=(media.pictures||[]).length; picSet=(picSet+1)%n; showPics(); };
+$('piczoom').onchange=showPics;
+
+// ---- arenas (files from t2_converter/src/export_stages.rs) ----
+// The sky drum (unit radius) is drawn first around the camera without depth, then the floor and the fighters.
+const arenaScene=new THREE.Scene(), skyScene=new THREE.Scene(), skyCam=new THREE.PerspectiveCamera(40,1,0.01,10);
+let arenas=[], arenaIdx=0, arena=null, fighters=null, spin=false, inArena=false;
+const T2_FOV=2*Math.atan(120/(955*5/8))*180/Math.PI;          // the game's vertical lens: 22.7 degrees
+function arenaMode(on){ if(on===inArena) return; inArena=on;
+  if(on){ scene.background=null; camera.fov=$('agame').checked?T2_FOV:40; camera.updateProjectionMatrix(); arenasReady.then(()=>arenas.length&&!arena&&loadArena(0)); placeArenaCam(); }
+  else { scene.background=new THREE.Color(0x0f1115); camera.fov=40; camera.updateProjectionMatrix(); controls.target.set(0,0.9,0); if(cur) frameModel(); } }
+function placeArenaCam(){ const d=($('agame').checked?9.5:5); controls.target.set(0,0.95,0); camera.position.set(0,1.25,d); controls.update(); }
+const arenasReady=fetch('stages/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():[]).catch(()=>[]).then(l=>{ arenas=l;
+  $('arena').innerHTML=l.map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join(''); $('arenacount').textContent=`(${l.length})`;
+  if(!l.length) $('tab-arenas').disabled=true; });
+const lin=c=>Math.pow(c,2.2);
+async function loadArena(i){ arenaIdx=(i+arenas.length)%arenas.length; $('arena').value=arenaIdx; const e=arenas[arenaIdx];
+  msg.style.display='flex'; msg.textContent=`Loading ${e.name}…`;
+  const g=await loader.loadAsync('stages/'+e.file+'?v='+Date.now());
+  if(arena){ arenaScene.remove(arena.floor); skyScene.remove(arena.sky); }
+  const ex=g.parser.json.scenes[0].extras||{}; let floor=null, sky=new THREE.Group();
+  const meshes=[]; g.scene.traverse(o=>{ if(o.isMesh) meshes.push(o); });
+  for(const o of meshes){ const old=o.material, geo=o.geometry=o.geometry.clone();   // the parts share their accessors
+    if(old.map){ old.map.magFilter=old.map.minFilter=THREE.NearestFilter; old.map.generateMipmaps=false; old.map.needsUpdate=true; }
+    const fill=old.name==='fill';
+    const col=geo.attributes.color; if(col&&fill) for(let k=0;k<col.count;k++) col.setXYZ(k,lin(col.getX(k)),lin(col.getY(k)),lin(col.getZ(k)));
+    const m=new THREE.MeshBasicMaterial({map:fill?null:old.map, vertexColors:true, side:THREE.DoubleSide, alphaTest:fill?0:0.5,
+      depthTest:o.name==='floor', depthWrite:o.name==='floor'}); o.material=m; old.dispose();
+    if(o.name==='floor'){ floor=o; o.userData.base=Float32Array.from(geo.attributes.position.array); }
+    else { o.renderOrder=o.name==='panorama_strip'?10:+o.name.slice(5); sky.add(o); } }
+  floor.removeFromParent(); arenaScene.add(floor); skyScene.add(sky);
+  arena={floor, sky, ex, name:e.name};
+  const L=ex.lighting; if(L){ shadowU.dir.value.set(L.shadow[0],L.shadow[1]); shadowU.col.value.setRGB(...L.shadow_rgb.map(c=>lin(c/255))); }
+  const pano=ex.panorama||{}, f=ex.fills||{};
+  $('ainfo').innerHTML=`floor mode ${ex.floor_mode} (tile ${ex.floor_patch.tile*1000}), shade ${ex.floor_shade}<br>panorama ${pano.width?pano.width+' × '+(pano.bottom-pano.top)+' px':'none'}, `+
+    `bottom ${pano.below} lines under the horizon${pano.effect?', effect '+pano.effect:''}`;
+  msg.style.display='none'; }
+// floor colour by the EXE's rules (t2_converter/src/export_stages.rs): mode 0 fades with the view depth, modes 1 / 2 light it from the fighters
+function shadeFloor(){ const fl=arena.floor, ex=arena.ex, col=fl.geometry.attributes.color, pos=fl.geometry.attributes.position;
+  const on=$('ashade').checked, mode=ex.floor_mode, k=ex.floor_shade, F=ex.floor_fade, T=F.table;
+  const fx=$('afighters').checked?1000:1000, v=new THREE.Vector3(), view=camera.matrixWorldInverse;
+  for(let i=0;i<col.count;i++){ let c=128;
+    if(on){ v.fromBufferAttribute(pos,i);
+      if(mode===0&&k){ const sz=-v.clone().applyMatrix4(view).z*1000, idx=Math.min(1023,Math.max(0,Math.floor((sz-F.sz0)*F.scale))); c=Math.max(0,Math.min(254,128+Math.trunc(T[idx>>3]*k/128))); }
+      else if(mode===1){ const gx=v.x*1000, gz=-v.z*1000, d1=(gx-fx)**2+gz*gz||1, d2=(gx+fx)**2+gz*gz||1; c=Math.min(254,Math.trunc(0x8000000/d1)+Math.trunc(0x8000000/d2)); }
+      else if(mode===2){ const gx=v.x*1000, gz=-v.z*1000; c=Math.min(192,Math.trunc(0x7A120000/((gx*gx+gz*gz)||1))); } }
+    const t=lin(Math.min(2,c/128)); col.setXYZ(i,t,t,t); }
+  col.needsUpdate=true; }
+// the body-shaped shadow (model part 1): flattened onto the floor along the stage's direction, in its colour
+const shadowU={ dir:{value:new THREE.Vector2(0,0)}, col:{value:new THREE.Color(0,0,0)} };
+function shadowMaterial(){ const m=new THREE.MeshBasicMaterial({color:0x000000, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2});
+  m.onBeforeCompile=sh=>{ sh.uniforms.sdir=shadowU.dir; sh.uniforms.scol=shadowU.col;
+    sh.vertexShader='uniform vec2 sdir;\n'+sh.vertexShader.replace('#include <project_vertex>',
+      'vec4 wp = modelMatrix * vec4(transformed, 1.0); wp.x += wp.y * sdir.x; wp.z -= wp.y * sdir.y; wp.y = 0.002;\n'+
+      'vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;');
+    sh.fragmentShader='uniform vec3 scol;\n'+sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );','vec4 diffuseColor = vec4( scol, 1.0 );'); };
+  return m; }
+async function makeFighters(){ if(fighters||!list.length) return;
+  const { clone }=await import('three/addons/utils/SkeletonUtils.js');
+  const g=await loader.loadAsync('models/'+list[0].file); fighters=new THREE.Group();
+  for(const sx of [-1,1]){ const r=clone(g.scene); r.position.x=sx; r.rotation.y=sx<0?Math.PI/2:-Math.PI/2;
+    r.traverse(o=>{ if(!o.isMesh) return; o.frustumCulled=false;
+      o.material = o.name==='shadow' ? shadowMaterial() : new THREE.MeshLambertMaterial({map:o.material.map, alphaTest:0.5});
+      if(o.name==='shadow') o.renderOrder=1; });
+    if(g.animations.length){ const mx=new THREE.AnimationMixer(r), a=mx.clipAction(g.animations[0]); a.play(); mx.setTime(0); r.userData.mixer=mx; }
+    fighters.add(r); }
+  fighters.add(new THREE.HemisphereLight(0xffffff,0x334,1.1)); const l=new THREE.DirectionalLight(0xffffff,1.4); l.position.set(2,4,3); fighters.add(l);
+  arenaScene.add(fighters); }
+$('arena').onchange=()=>loadArena(+$('arena').value);
+$('aprev').onclick=()=>loadArena(arenaIdx-1); $('anext').onclick=()=>loadArena(arenaIdx+1);
+$('aspin').onclick=()=>{ spin=!spin; $('aspin').textContent=spin?'Stop':'Turn'; };
+$('agame').onchange=()=>{ camera.fov=$('agame').checked?T2_FOV:40; camera.updateProjectionMatrix(); placeArenaCam(); };
+function renderArena(dt){
+  if(spin){ const p=camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0,1,0),dt*0.3); camera.position.copy(controls.target).add(p); }
+  controls.update(); camera.updateMatrixWorld();
+  if($('afighters').checked) makeFighters(); if(fighters) fighters.visible=$('afighters').checked;
+  renderer.autoClear=false; renderer.setClearColor(0x000000); renderer.clear();
+  if(arena){ shadeFloor();
+    skyCam.fov=camera.fov; skyCam.aspect=camera.aspect; skyCam.updateProjectionMatrix(); skyCam.quaternion.copy(camera.quaternion); skyCam.position.set(0,0,0); skyCam.updateMatrixWorld();
+    renderer.render(skyScene,skyCam); renderer.clearDepth(); }
+  renderer.render(arenaScene,camera); renderer.autoClear=true; }
+
+// ---- inspection helper (automated contact sheets): one picture per model and view angle ----
+window.T2V = {
+  get cur(){ return cur; }, get list(){ return list; }, camera, controls, scene, renderer, THREE, setTab, get media(){ return media; }, loadArena, get arena(){ return arena; },
+  load(id){ const e=list.find(x=>x.id===id); return loadGLB('models/'+e.file,e.name); },
+  async strip(ids, clip=0, frac=0.4, yaws=[0,90], size=300){
+    playing=false; const out=document.createElement('canvas'); out.width=yaws.length*size*ids.length; out.height=size; const g=out.getContext('2d'); let x=0;
+    for(const id of ids){ await this.load(id); setClip(Math.min(clip,cur.clips.length-1));
+      cur.action.time=cur.action.getClip().duration*frac; cur.mixer.update(0); frameModel();
+      const base=camera.position.clone().sub(controls.target);
+      for(const yw of yaws){ camera.position.copy(controls.target).add(base.clone().applyAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(yw))); camera.lookAt(controls.target);
+        renderer.render(scene,camera); const c=renderer.domElement, s=Math.min(c.width,c.height);
+        g.drawImage(c,(c.width-s)/2,(c.height-s)/2,s,s,x,0,size,size); g.fillStyle='#66ccff'; g.font='13px monospace'; g.fillText(`${id} ${cur.name} m${cur.clipIndex} ${yw}°`,x+4,16); x+=size; } }
+    return out.toDataURL('image/jpeg',0.85);
+  },
+};
+
+const clock=new THREE.Clock();
+renderer.setAnimationLoop(()=>{ const dt=clock.getDelta();
+  if(cur&&cur.wings&&playing){ // Devil's / Angel's wings: the idle clip (0), one frame number per game frame
+    const w=cur.wings, seq=w.userData.clips[0]; cur.wingT=(cur.wingT+dt*FPS*(+$('speed').value))%seq.length;
+    const inf=w.morphTargetInfluences; inf.fill(0); inf[seq[Math.floor(cur.wingT)]]=1; }
+  if(cur&&cur.action){ if(playing) cur.mixer.update(dt*(+$('speed').value));
+    const f=Math.round(cur.action.time*FPS); if(playing) $('frame').value=f; $('flabel').textContent=`${f} / ${$('frame').max}`;
+    hud.textContent=`${cur.name} · ${cur.clips[cur.clipIndex].name} · frame ${f}/${$('frame').max}`; }
+  if(inArena){ renderArena(dt); return; }
+  controls.update(); renderer.render(scene,camera); });
+</script>
+</body>
+</html>

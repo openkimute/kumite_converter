@@ -1,0 +1,23 @@
+[package]
+name = "convert"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "kumite_convert"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+conv_io = { path = "../conv_io" }
+t3_converter = { path = "../t3_converter" }
+t2_converter = { path = "../t2_converter" }
+cs_levels = { path = "../cs_levels" }
+chrono.workspace = true
+
+[lints]
+workspace = true

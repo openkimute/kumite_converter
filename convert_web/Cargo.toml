@@ -1,0 +1,27 @@
+[package]
+name = "convert_web"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+# the converter in the browser: web/convert_worker.js runs it (build.sh)
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["jspi"]
+# writing into a folder the user picked (Chrome, Edge): needs JSPI and exnref; build.sh makes a build without it too
+jspi = []
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+conv_io = { path = "../conv_io" }
+convert = { path = "../convert" }
+t3_converter = { path = "../t3_converter" }
+# (the version of wasm-bindgen-cli build.sh runs)
+wasm-bindgen = "=0.2.129"
+
+[lints]
+workspace = true

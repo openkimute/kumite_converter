@@ -1,0 +1,26 @@
+[package]
+name = "t2_converter"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "t2_convert"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+conv_io = { path = "../conv_io" }
+psx_media = { path = "../psx_media" }
+serde_json.workspace = true
+png.workspace = true
+image.workspace = true
+libm.workspace = true
+np_portable = { path = "../np_portable" }
+sha1.workspace = true
+sha2.workspace = true
+md-5.workspace = true
+
+[lints]
+workspace = true

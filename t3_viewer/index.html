@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenKumite: Tekken 3 data viewer</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8b93a7; --accent:#ff5a3c; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:13px/1.4 system-ui,-apple-system,Segoe UI,sans-serif; }
+  #app { display:grid; grid-template-columns:280px 1fr; height:100%; }
+  aside { background:var(--panel); border-right:1px solid var(--line); padding:14px; overflow:auto; display:flex; flex-direction:column; gap:14px; }
+  h1 { font-size:15px; margin:0; letter-spacing:.02em; } h1 span { color:var(--accent); }
+  label { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+  select,input[type=range] { width:100%; }
+  select { background:#0f1115; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button { background:#232835; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .chk { display:flex; gap:6px; align-items:center; color:var(--text); text-transform:none; letter-spacing:0; font-size:13px; }
+  #stage { position:relative; }
+  canvas { display:block; }
+  #hud { position:absolute; left:12px; bottom:10px; color:var(--muted); font:12px ui-monospace,Menlo,monospace; pointer-events:none; }
+  #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); text-align:center; padding:24px; pointer-events:none; }
+  #drop { position:absolute; inset:12px; border:2px dashed var(--accent); border-radius:12px; display:none; align-items:center; justify-content:center; color:var(--accent); font-size:16px; pointer-events:none; }
+  .note { color:var(--muted); font-size:12px; margin:0; }
+  code { font-size:11px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+  .tabs button { border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--muted); padding:6px 10px; }
+  .tabs button.on { color:var(--text); border-bottom-color:var(--accent); }
+  .panel { display:flex; flex-direction:column; gap:14px; }
+  .panel[hidden] { display:none; }
+  .tabs { flex-wrap:wrap; }
+  #media { position:absolute; inset:0; overflow:auto; padding:20px 24px; display:none; background:var(--bg); }
+  #media.on { display:block; }
+  #media h2 { font-size:15px; margin:0 0 12px; font-weight:600; }
+  .list { display:flex; flex-direction:column; gap:2px; max-height:none; }
+  .item { display:flex; gap:10px; align-items:center; justify-content:space-between; text-align:left; width:100%; padding:7px 10px; border-radius:6px;
+          background:none; border:1px solid transparent; color:var(--text); }
+  .item:hover { border-color:var(--line); } .item.on { border-color:var(--accent); background:#232835; }
+  .item small { color:var(--muted); font:11px ui-monospace,Menlo,monospace; }
+  .sfx-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .sfx-grid button { text-align:left; padding:10px; } .sfx-grid button small { display:block; color:var(--muted); font:11px ui-monospace,Menlo,monospace; margin-top:2px; }
+  .sfx-grid button.playing { border-color:var(--accent); }
+  #media audio { width:100%; margin-bottom:14px; }
+  #media img.movie { display:block; width:100%; max-height:calc(100vh - 140px); background:#000; image-rendering:pixelated; object-fit:contain; }
+  .pic-grid { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+  .pic-grid figure { margin:0; display:flex; flex-direction:column; gap:4px; }
+  .pic-grid img { image-rendering:pixelated; background:#000; display:block; cursor:zoom-in; }
+  .pic-grid figcaption { color:var(--muted); font:11px ui-monospace,Menlo,monospace; }
+  #pic-big { position:absolute; inset:0; background:rgba(0,0,0,.92); display:none; align-items:center; justify-content:center; cursor:zoom-out; }
+  #pic-big img { image-rendering:pixelated; max-width:96%; max-height:96%; }
+  .vlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:4px; margin-top:14px; }
+  @media (max-width:720px){ #app{grid-template-columns:1fr; grid-template-rows:auto 1fr;} aside{border-right:0;border-bottom:1px solid var(--line);max-height:45vh;} }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <h1>OPENKUMITE · TEKKEN <span>3</span> glTF viewer</h1>
+    <div class="tabs" role="tablist"><button id="tab-chars" class="on" role="tab">Characters</button><button id="tab-arenas" role="tab">Arenas</button><button id="tab-sfx" role="tab">Sounds</button><button id="tab-music" role="tab">Music</button><button id="tab-video" role="tab">Video</button><button id="tab-pics" role="tab">Pictures</button></div>
+    <div id="pics-panel" class="panel" hidden>
+      <div><label>Picture set <span id="piccount"></span></label><select id="picset"></select></div>
+      <div class="row"><button id="picprev">◀</button><button id="picnext">▶</button></div>
+      <div><label>Zoom</label><select id="piczoom"><option value="0" selected>Auto</option><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></div>
+      <p class="note">2D art from the disc: portraits, title and menu screens, HUD fonts, Theater stills. Most of it is
+        LZ-compressed; colour 0 is transparent, as on the PS1. Screen-sized pictures are assembled from their strips.
+        Produced by <code>t3_converter/src/export_pictures.rs</code>.</p>
+    </div>
+    <div id="sfx-panel" class="panel" hidden>
+      <div><label>Sound bank <span id="sfxcount"></span></label><select id="sfxbank"></select></div>
+      <div class="row"><button id="sfxprev">◀</button><button id="sfxnext">▶</button><button id="sfxall">Play all</button><button id="sfxstop">Stop</button></div>
+      <p class="note">The system sounds (hits, menus) and announcer banks embedded in the EXE, plus each character's
+        VAB sound bank, decoded from PS1 SPU ADPCM and played at the rate the game keys them (key = tone + 60:
+        about 16 kHz for system sounds, 8 kHz for voices).</p>
+    </div>
+    <div id="music-panel" class="panel" hidden>
+      <div class="row"><button id="mprev">◀</button><button id="mplay">Play</button><button id="mnext">▶</button></div>
+      <label class="chk"><input type="checkbox" id="mauto" checked> Play the next track automatically</label>
+      <p class="note">The 50 XA-ADPCM streams the game indexes in its EXE (37.8 kHz stereo), plus the CD audio track.
+        Track names aren't stored on the disc.</p>
+    </div>
+    <div id="video-panel" class="panel" hidden>
+      <label class="chk"><input type="checkbox" id="vsmooth"> Smooth scaling</label>
+      <p class="note">The 22 STR movies (MDEC video + XA audio), as Motion-JPEG frames (AVI) and a FLAC soundtrack. Titles come from watching them.</p>
+    </div>
+    <div id="arena-panel" class="panel" hidden>
+      <div><label>Arena <span id="acount"></span></label><select id="arena"></select></div>
+      <div class="row"><button id="aprev">◀</button><button id="anext">▶</button></div>
+      <div>
+        <label class="chk"><input type="checkbox" id="achar" checked> Show current character</label>
+        <label class="chk"><input type="checkbox" id="aorbit"> Orbit camera</label>
+        <label class="chk"><input type="checkbox" id="aevents" checked> Tekken Force enemies, items and markers</label>
+      </div>
+      <div id="force-scroll" hidden><label>Level position <span id="fxlabel"></span></label><input id="fx" type="range" min="-5000" max="36000" step="250" value="0"></div>
+      <div>
+      </div>
+      <p class="note">Arenas are produced by <code>t3_converter/src/export_stages.rs</code>. They are drawn unlit
+        with the stage's vertex colours, like on the PS1. Smooth textures and wireframe apply here too.</p>
+    </div>
+    <div id="char-panel" class="panel">
+    <div><label>Character</label><select id="model"></select></div>
+    <div class="row"><button id="open">Open .glb…</button><input id="file" type="file" accept=".glb,.gltf" hidden></div>
+    <div><label>Animation <span id="mcount"></span></label><select id="motion"></select></div>
+    <div class="row"><button id="play">Pause</button><button id="prev">◀</button><button id="next">▶</button><button id="rnd">Random</button></div>
+    <div><label>Frame <span id="flabel"></span></label><input id="frame" type="range" min="0" max="1" value="0"></div>
+    <div><label>Speed <span id="slabel">1.0×</span></label><input id="speed" type="range" min="0.1" max="2" step="0.1" value="1"></div>
+    <div>
+      <label class="chk"><input type="checkbox" id="lockroot" checked> Keep root in place (XZ)</label>
+      <label class="chk"><input type="checkbox" id="filter"> Smooth textures</label>
+      <label class="chk"><input type="checkbox" id="lit" checked> Lighting</label>
+      <label class="chk"><input type="checkbox" id="wire"> Wireframe</label>
+      <label class="chk"><input type="checkbox" id="bones"> Show skeleton</label>
+      <label class="chk"><input type="checkbox" id="twosided" checked> Show back faces (off = PS1 one-sided culling)</label>
+    </div>
+    <p class="note">Plain glTF 2.0 player (GLTFLoader + AnimationMixer). Models are produced by
+      <code>t3_converter/src/export_gltf.rs</code> from your own disc; the game's IK is already baked into
+      the animations. Drop any <code>.glb</code> onto the page to view it.</p>
+    </div>
+  </aside>
+  <div id="stage"><div id="msg">Loading…</div><div id="drop">Drop .glb file</div><div id="hud"></div><div id="media"></div></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+
+const FPS = 60;
+const $ = id => document.getElementById(id);
+const stage=$('stage'), msg=$('msg'), hud=$('hud');
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(devicePixelRatio);
+renderer.outputColorSpace=THREE.SRGBColorSpace; stage.appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0f1115); const fogChars=new THREE.Fog(0x0f1115,4,14); scene.fog=fogChars;
+const camera=new THREE.PerspectiveCamera(40,1,0.05,400); camera.position.set(2.2,1.4,3.0);
+const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,0.9,0); controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x334,1.1));
+const sun=new THREE.DirectionalLight(0xffffff,1.6); sun.position.set(2,4,3); scene.add(sun);
+const grid=new THREE.GridHelper(10,20,0x444a58,0x252a35); scene.add(grid);
+function resize(){ const r=stage.getBoundingClientRect(); renderer.setSize(r.width,r.height); camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+
+const loader=new GLTFLoader();
+let cur=null;            // {root, mixer, clips, action, rootName, helper, name, clipIndex}
+let list=[], playing=true;
+
+function dispose(){ if(!cur) return; scene.remove(cur.root); if(cur.helper) scene.remove(cur.helper);
+  cur.root.traverse(o=>{ if(o.isMesh){ o.geometry.dispose(); [].concat(o.material).forEach(m=>{ m.map&&m.map.dispose(); m.dispose(); }); } }); cur=null; }
+
+// The root bone's X/Z translation is root motion; optionally strip it so the character stays centred.
+function prepareClip(clip, rootName, lock){
+  const c=clip.clone();
+  if(lock) for(const t of c.tracks) if(t.name===rootName+'.position'){ const v=t.values; for(let i=0;i<v.length;i+=3){ v[i]=0; v[i+2]=0; } }
+  return c;
+}
+// Default animation: the long clip whose pose changes least (the idle fight stance).
+function idleClip(clips){
+  let best=0, bestScore=1e18;
+  clips.slice(0,60).forEach((c,i)=>{ const n=Math.round(c.duration*FPS)+1; if(n<30) return; let tot=0, cnt=0;
+    for(const t of c.tracks){ if(!t.name.endsWith('.quaternion')) continue; const v=t.values;
+      for(let f=4;f<v.length;f+=4){ tot+=1-Math.abs(v[f]*v[0]+v[f+1]*v[1]+v[f+2]*v[2]+v[f+3]*v[3]); cnt++; } }
+    const score=tot/Math.max(cnt,1)+i*1e-4; if(score<bestScore){ bestScore=score; best=i; } });
+  return best;
+}
+function frameModel(){
+  const box=new THREE.Box3().setFromObject(cur.root), c=box.getCenter(new THREE.Vector3()), sz=box.getSize(new THREE.Vector3());
+  const r=Math.max(sz.x,sz.y,sz.z)*0.5+0.2, dist=r/Math.sin(THREE.MathUtils.degToRad(camera.fov/2))*1.1;
+  controls.target.copy(c); camera.position.copy(c).add(new THREE.Vector3(0.55,0.25,0.8).normalize().multiplyScalar(dist));
+  fogChars.near=dist*1.5; fogChars.far=dist*5; controls.update();
+}
+function updateMaterial(){ if(!cur) return;
+  cur.root.traverse(o=>{ if(!o.isMesh) return;
+    const old=o.material, M=$('lit').checked?THREE.MeshLambertMaterial:THREE.MeshBasicMaterial;
+    const side=old.userData.side ?? old.side;   // keep the file's one-/double-sided setting
+    const m=new M({map:old.map, side:$('twosided').checked?THREE.DoubleSide:side, alphaTest:0.5, wireframe:$('wire').checked}); m.userData.side=side;
+    if(m.map){ m.map.magFilter=m.map.minFilter=$('filter').checked?THREE.LinearFilter:THREE.NearestFilter; m.map.needsUpdate=true; }
+    o.material=m; old.dispose(); });
+  if(cur.helper) cur.helper.visible=$('bones').checked;
+  showArenaView();
+}
+function setClip(i){ if(!cur||!cur.clips.length) return;
+  cur.clipIndex=(i+cur.clips.length)%cur.clips.length; $('motion').value=cur.clipIndex;
+  if(cur.action) cur.action.stop();
+  const clip=prepareClip(cur.clips[cur.clipIndex], cur.rootName, $('lockroot').checked);
+  cur.action=cur.mixer.clipAction(clip); cur.action.play(); cur.mixer.update(0);
+  $('frame').max=Math.round(clip.duration*FPS); }
+
+async function loadGLB(src, name){
+  msg.style.display='flex'; msg.textContent=`Loading ${name}…`;
+  let gltf;
+  try { gltf = typeof src==='string' ? await loader.loadAsync(src+'?v='+Date.now()) : await new Promise((res,rej)=>loader.parse(src,'',res,rej)); }   // ?v= avoids stale cached models after re-export
+  catch(e){ msg.textContent='Could not load '+name+': '+e.message; return; }
+  dispose();
+  const root=gltf.scene; scene.add(root);
+  let skinned=null; root.traverse(o=>{ if(o.isSkinnedMesh){ skinned=o; o.frustumCulled=false; } });
+  const rootName = skinned ? skinned.skeleton.bones[0].name : '';
+  const helper=new THREE.SkeletonHelper(root); scene.add(helper);
+  cur={root, mixer:new THREE.AnimationMixer(root), clips:gltf.animations, rootName, helper, name, clipIndex:0};
+  updateMaterial();
+  $('motion').innerHTML=cur.clips.map((c,i)=>`<option value="${i}">${c.name} · ${Math.round(c.duration*FPS)+1} frames</option>`).join('');
+  $('mcount').textContent=`(${cur.clips.length})`;
+  setClip(idleClip(cur.clips));
+  if(tab==='arenas') showArenaView(); else frameModel();
+  msg.style.display='none';
+}
+
+// ---- UI ----
+$('model').onchange=()=>{ const e=list[$('model').selectedIndex]; loadGLB('models/'+e.file, e.name); };
+$('motion').onchange=()=>setClip(+$('motion').value);
+$('play').onclick=()=>{ playing=!playing; $('play').textContent=playing?'Pause':'Play'; };
+$('prev').onclick=()=>cur&&setClip(cur.clipIndex-1); $('next').onclick=()=>cur&&setClip(cur.clipIndex+1);
+$('rnd').onclick=()=>cur&&setClip(Math.floor(Math.random()*cur.clips.length));
+$('frame').oninput=()=>{ if(!cur||!cur.action) return; playing=false; $('play').textContent='Play'; cur.action.time=+$('frame').value/FPS; cur.mixer.update(0); };
+$('speed').oninput=()=>$('slabel').textContent=(+$('speed').value).toFixed(1)+'×';
+for(const k of ['filter','lit','wire','bones','twosided']) $(k).onchange=updateMaterial;
+$('lockroot').onchange=()=>cur&&setClip(cur.clipIndex);
+$('open').onclick=()=>$('file').click();
+$('file').onchange=async e=>{ const f=e.target.files[0]; if(f) loadGLB(await f.arrayBuffer(), f.name); };
+addEventListener('dragover',e=>{ e.preventDefault(); $('drop').style.display='flex'; });
+addEventListener('dragleave',e=>{ if(!e.relatedTarget) $('drop').style.display='none'; });
+addEventListener('drop',async e=>{ e.preventDefault(); $('drop').style.display='none'; const f=e.dataTransfer.files[0]; if(f) loadGLB(await f.arrayBuffer(), f.name); });
+
+fetch('models/index.json',{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(l=>{
+  list=l; $('model').innerHTML=l.map(e=>`<option>${e.name} (#${e.id})</option>`).join('');
+  if(l.length) loadGLB('models/'+l[0].file, l[0].name);
+}).catch(()=>{ msg.innerHTML='No model list found. Serve this folder with <code>target/release/serve 8765</code> after running<br><code>t3_convert export_gltf "Tekken_3_(USA)_(Track 1).bin" t3_viewer/models</code><br>or drop a .glb file here.'; });
+
+// ---- arenas ----
+let arenas=[], arena=null, tab='chars';      // arena: {root, name, index}
+function arenaMaterials(){ if(!arena) return;
+  const made=new Map();                    // floor copies share one material
+  arena.root.traverse(o=>{ if(!o.isMesh) return; const old=o.material, isSky=(!!arena.sky&&(o===arena.sky||o.parent===arena.sky))||(!!arena.strip&&(o===arena.strip||o.parent===arena.strip));
+    const key=old.uuid+isSky; let m=made.get(key);
+    if(!m){ m=new THREE.MeshBasicMaterial({map:old.map, vertexColors:true, side:THREE.DoubleSide, alphaTest:0.5, wireframe:$('wire').checked});
+      if(m.map){ m.map.magFilter=m.map.minFilter=$('filter').checked?THREE.LinearFilter:THREE.NearestFilter; m.map.needsUpdate=true; }
+      if(isSky){ m.depthWrite=false; m.depthTest=false; }
+      made.set(key,m); }
+    o.material=m; }); }
+function showArenaView(){
+  const on=tab==='arenas'&&!!arena;
+  if(arena) arena.root.visible=on;
+  grid.visible=!on; scene.fog=on?null:fogChars;
+  if(cur) cur.root.visible=!on||$('achar').checked;
+  if(cur&&cur.helper) cur.helper.visible=$('bones').checked&&(!on||$('achar').checked);
+}
+function frameArena(){   // Tekken Force: the game's side-scrolling camera (eye y 3500, z -7000 game units, 15 deg down)
+  if(arena&&/Force/.test(arena.name)){ const x=+$('fx').value*0.001; controls.target.set(x,1.6,-0.5); camera.position.set(x,3.5,7); }
+  else { controls.target.set(0,0.9,0); camera.position.set(0,1.3,3.4); }
+  controls.update(); }
+async function loadArena(i){
+  if(!arenas.length) return; i=(i+arenas.length)%arenas.length; const e=arenas[i]; $('arena').value=i;
+  msg.style.display='flex'; msg.textContent=`Loading ${e.name}…`;
+  let gltf; try { gltf=await loader.loadAsync('stages/'+e.file+'?v='+Date.now()); }
+  catch(err){ msg.textContent='Could not load '+e.name+': '+err.message; return; }
+  if(arena){ scene.remove(arena.root);      // soldier clones share geometry/textures with the cached models: keep those
+    arena.root.traverse(o=>{ if(!o.isMesh) return; if(o.isSkinnedMesh){ o.material.dispose(); return; }
+      o.geometry.dispose(); o.material.map&&o.material.map.dispose(); o.material.dispose(); }); }
+  arena={root:gltf.scene, name:e.name, index:i, sky:gltf.scene.getObjectByName('sky'), strip:gltf.scene.getObjectByName('panorama_strip'),
+         stripAt:((gltf.parser.json.scenes[0]||{}).extras||{}).panorama_strip}; scene.add(arena.root); arenaMaterials();
+  if(arena.strip){ // Tekken Ball's 2D sky strip on a unit drum: centred on the camera every frame, drawn first
+    arena.strip.traverse(o=>{ if(o.isMesh){ o.renderOrder=-2; o.frustumCulled=false; o.material.depthWrite=false; o.material.depthTest=false; o.material.side=THREE.DoubleSide; } }); }
+  arena.root.traverse(o=>{ if(o.isMesh) o.frustumCulled=o!==arena.sky&&o.parent!==arena.sky; });
+  if(arena.sky){ // the backdrop drum: a world object centred on the fighters (here the origin), its base below the floor,
+    // drawn after the floor without depth (scene extras: drum_base_y in game units)
+    const ex=(gltf.parser.json.scenes[0]||{}).extras||{};
+    arena.sky.position.set(0, -(ex.drum_base_y||0)/1000, 0); const order=ex.drum_before_floor?-1:1;
+    arena.sky.renderOrder=order; arena.sky.frustumCulled=false;
+    arena.sky.traverse(o=>{ if(o.isMesh){ o.renderOrder=order; o.frustumCulled=false; o.material.depthWrite=false; o.material.depthTest=false; } }); }
+  await populateForce();
+  msg.style.display='none'; showArenaView();
+}
+// ---- Tekken Force placements: nodes with glTF extras written by export_stages ----
+const soldierCache=new Map();             // model id -> gltf promise
+let forceMixers=[], forceItems=[];
+function soldier(model){ if(!soldierCache.has(model)) soldierCache.set(model, loader.loadAsync(`models/model_${String(model).padStart(3,'0')}.glb`)); return soldierCache.get(model); }
+async function populateForce(){
+  forceMixers=[]; forceItems=[]; const holder=arena.root.getObjectByName('force_events');
+  $('force-scroll').hidden=!holder; if(!holder) return;
+  const markerMat={ 'stage clear':0x40d0ff, 'wait for kills':0xffcc40, 'wait until clear':0xffcc40 };
+  for(const node of [...holder.children]){ const e=node.userData||{};
+    if(e.type==='enemy'){
+      let g; try { g=await soldier(e.model); } catch(err){ continue; }
+      const body=cloneSkinned(g.scene); body.rotation.y=-Math.PI/2;      // face the player, who arrives from -x
+      body.traverse(o=>{ if(o.isMesh){ o.frustumCulled=false; o.material=new THREE.MeshLambertMaterial({map:o.material.map, side:THREE.DoubleSide, alphaTest:0.5});
+        if(o.material.map) o.material.map.magFilter=o.material.map.minFilter=THREE.NearestFilter; } });
+      node.add(body);
+      const clips=g.animations, mixer=new THREE.AnimationMixer(body), clip=clips[idleClip(clips)];
+      if(clip){ const a=mixer.clipAction(clip); a.play(); a.time=Math.random()*clip.duration; }
+      forceMixers.push(mixer);
+    } else if(e.type==='item'){ forceItems.push(node); }
+    else if(e.type==='marker'){
+      const col=markerMat[e.what]??0x8090a0, m=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.02,4.6), new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.8}));
+      m.position.set(0,0.01,-0.2); node.add(m); } }
+  showForceEvents(); }
+function showForceEvents(){ const h=arena&&arena.root.getObjectByName('force_events'); if(h) h.visible=$('aevents').checked; }
+$('aevents').onchange=showForceEvents;
+$('fx').oninput=()=>{ const x=+$('fx').value; $('fxlabel').textContent=`x = ${x}`;
+  const dx=x*0.001-controls.target.x; controls.target.x+=dx; camera.position.x+=dx; controls.update(); };
+const PANELS={chars:'char-panel', arenas:'arena-panel', sfx:'sfx-panel', music:'music-panel', video:'video-panel', pics:'pics-panel'};
+const TABS=Object.keys(PANELS), MEDIA_TABS=['sfx','music','video','pics'];
+function setTab(t){ tab=t;
+  for(const k of TABS){ $('tab-'+k).classList.toggle('on',k===t); $(PANELS[k]).hidden=k!==t; }
+  const isMedia=MEDIA_TABS.includes(t);
+  $('media').classList.toggle('on',isMedia); hud.style.display=isMedia?'none':'';
+  if(!isMedia) stopMedia();
+  if(t==='arenas'){ if(!arena) loadArena(0).then(frameArena); else { showArenaView(); frameArena(); } }
+  else if(t==='chars'){ showArenaView(); if(cur) frameModel(); }
+  else if(t==='pics') showPics();
+  else showMedia(t); }
+for(const k of TABS) $('tab-'+k).onclick=()=>setTab(k);
+$('arena').onchange=()=>loadArena(+$('arena').value).then(frameArena);
+$('aprev').onclick=()=>arena&&loadArena(arena.index-1).then(frameArena); $('anext').onclick=()=>arena&&loadArena(arena.index+1).then(frameArena);
+$('achar').onchange=showArenaView;
+for(const k of ['filter','wire']) $(k).addEventListener('change',arenaMaterials);
+fetch('stages/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():[]).then(l=>{ arenas=l;
+  $('arena').innerHTML=l.map((e,i)=>`<option value="${i}">${e.name}</option>`).join(''); $('acount').textContent=`(${l.length})`;
+  if(!l.length) $('tab-arenas').disabled=true; }).catch(()=>{ $('tab-arenas').disabled=true; });
+
+// ---- sounds, music, video (files from t3_converter/src/export_media.rs) ----
+let media=null, sfxBank=0, track=-1, movie=0, sfxAudio=null, sfxQueue=null;
+const mediaEl=$('media'), esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=sec=>`${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`;
+const mediaReady=fetch('media/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).catch(()=>({})).then(m=>{ media=m;
+  for(const [k,n] of [['sfx',(m.sfx||[]).length],['music',(m.music||[]).length],['video',(m.video||[]).length]]) if(!n) $('tab-'+k).disabled=true;
+  $('sfxbank').innerHTML=(m.sfx||[]).map((b,i)=>`<option value="${i}">${esc(b.name)}</option>`).join('');
+  $('sfxcount').textContent=`(${(m.sfx||[]).length})`; });
+function stopMedia(){ if(sfxAudio){ sfxAudio.pause(); sfxAudio=null; } sfxQueue=null;
+  mediaEl.querySelectorAll('audio,video').forEach(e=>e.pause()); }
+function playSfx(i){ const b=media.sfx[sfxBank], s=b.samples[i]; if(!s) return;
+  if(sfxAudio) sfxAudio.pause(); sfxAudio=new Audio('media/sfx/'+s.file); sfxAudio.play();
+  mediaEl.querySelectorAll('.sfx-grid button').forEach((e,j)=>e.classList.toggle('playing',j===i));
+  sfxAudio.onended=()=>{ mediaEl.querySelectorAll('.sfx-grid button').forEach(e=>e.classList.remove('playing'));
+    if(sfxQueue!==null&&i+1<b.samples.length) setTimeout(()=>sfxQueue!==null&&playSfx(i+1),250); else sfxQueue=null; }; }
+function showMedia(t){ mediaReady.then(()=>{ stopMedia();
+  if(t==='sfx'){ const b=media.sfx[sfxBank]; $('sfxbank').value=sfxBank;
+    mediaEl.innerHTML=`<h2>${esc(b.name)} · ${b.samples.length} sounds</h2><div class="sfx-grid">`+b.samples.map((s,i)=>
+      `<button data-i="${i}">Sound ${i+1}<small>${s.seconds.toFixed(2)} s · ${s.rate} Hz</small></button>`).join('')+'</div>';
+    mediaEl.querySelectorAll('.sfx-grid button').forEach(e=>e.onclick=()=>{ sfxQueue=null; playSfx(+e.dataset.i); }); }
+  if(t==='music'){
+    mediaEl.innerHTML=`<h2>Music · ${media.music.length} tracks</h2><audio id="mplayer" controls preload="none"></audio><div class="list">`+media.music.map((m,i)=>
+      `<button class="item" data-i="${i}"><span>${String(i+1).padStart(2,'0')} · ${esc(m.name)}</span><small>${fmt(m.seconds)}</small></button>`).join('')+'</div>';
+    mediaEl.querySelectorAll('.item').forEach(e=>e.onclick=()=>playTrack(+e.dataset.i));
+    $('mplayer').onended=()=>{ if($('mauto').checked) playTrack(track+1); };
+    $('mplayer').onplay=()=>$('mplay').textContent='Pause'; $('mplayer').onpause=()=>$('mplay').textContent='Play';
+    if(track>=0) markTrack(); }
+  if(t==='video'){
+    mediaEl.innerHTML=`<h2 id="vtitle"></h2><audio id="vaudio" controls preload="metadata"></audio><img id="vplayer" class="movie" alt=""><div class="vlist">`+media.video.map((v,i)=>
+      `<button class="item" data-i="${i}"><span>${esc(v.name)}</span><small>${fmt(v.seconds)} · ${v.fps} fps</small></button>`).join('')+'</div>';
+    mediaEl.querySelectorAll('.item').forEach(e=>e.onclick=()=>playMovie(+e.dataset.i,true));
+    playMovie(movie,false); requestAnimationFrame(showFrame); } }); }
+function markTrack(){ mediaEl.querySelectorAll('.item').forEach((e,j)=>e.classList.toggle('on',j===track)); }
+function playTrack(i){ const n=media.music.length; track=(i+n)%n; const a=$('mplayer'); if(!a) return;
+  a.src='media/music/'+media.music[track].file; a.play(); markTrack(); }
+// a movie: its AVI's '##dc' chunks (Motion-JPEG frames), each shown while the soundtrack is at its time
+let movieFrames=[], movieShown=-1, movieUrl=null;
+function aviFrames(b){ const d=new DataView(b), id=i=>String.fromCharCode(...new Uint8Array(b,i,4)), f=[];
+  for(let i=12;i+8<=b.byteLength;){ const n=d.getUint32(i+4,true);
+    if(id(i)==='LIST'){ i+=12; continue; }
+    if(id(i).endsWith('dc')&&i+8+n<=b.byteLength) f.push(new Blob([new Uint8Array(b,i+8,n)],{type:'image/jpeg'}));
+    i+=8+n+(n&1); }
+  return f; }
+function showFrame(){ const a=$('vaudio'); if(!a) return; requestAnimationFrame(showFrame);
+  const k=Math.min(movieFrames.length-1,Math.floor(a.currentTime*media.video[movie].fps));
+  if(k<0||k===movieShown) return;
+  movieShown=k; if(movieUrl) URL.revokeObjectURL(movieUrl); movieUrl=URL.createObjectURL(movieFrames[k]); $('vplayer').src=movieUrl; }
+async function playMovie(i,play){ const n=media.video.length; movie=(i+n)%n; const a=$('vaudio'), m=media.video[movie], want=movie; if(!a) return;
+  movieFrames=[]; a.src='media/video/'+m.audio_file; $('vplayer').style.imageRendering=$('vsmooth').checked?'auto':'pixelated';
+  $('vtitle').textContent=`${m.name} · ${m.frames} frames at ${m.fps} fps`;
+  mediaEl.querySelectorAll('.item').forEach((e,j)=>e.classList.toggle('on',j===movie)); if(play) a.play();
+  const b=await fetch('media/video/'+m.file).then(r=>r.arrayBuffer());
+  if(movie!==want) return;
+  movieFrames=aviFrames(b); movieShown=-1; }
+$('sfxbank').onchange=()=>{ sfxBank=+$('sfxbank').value; showMedia('sfx'); };
+$('sfxprev').onclick=()=>{ sfxBank=(sfxBank-1+media.sfx.length)%media.sfx.length; showMedia('sfx'); };
+$('sfxnext').onclick=()=>{ sfxBank=(sfxBank+1)%media.sfx.length; showMedia('sfx'); };
+$('sfxall').onclick=()=>{ sfxQueue=0; playSfx(0); }; $('sfxstop').onclick=stopMedia;
+$('mprev').onclick=()=>playTrack(track-1); $('mnext').onclick=()=>playTrack(track+1);
+$('mplay').onclick=()=>{ const a=$('mplayer'); if(!a) return; if(track<0) playTrack(0); else if(a.paused) a.play(); else a.pause(); };
+$('vsmooth').onchange=()=>{ const v=$('vplayer'); if(v) v.style.imageRendering=$('vsmooth').checked?'auto':'pixelated'; };
+
+// ---- pictures (files from t3_converter/src/export_pictures.rs) ----
+let pics=[], picSet=0;
+const picsReady=fetch('pictures/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():[]).catch(()=>[]).then(l=>{ pics=l;
+  if(!l.length) $('tab-pics').disabled=true;
+  $('picset').innerHTML=l.map((p,i)=>`<option value="${i}">${esc(p.name)} (${p.images.length})</option>`).join('');
+  $('piccount').textContent=`(${l.length})`; });
+function showPics(){ picsReady.then(()=>{ const set=pics[picSet]; if(!set) return; const z=+$('piczoom').value||(Math.max(...set.images.map(i=>i.w))>300?1:2); $('picset').value=picSet;
+  mediaEl.innerHTML=`<h2>${esc(set.name)} · ${set.images.length} pictures · ${esc(set.source)}</h2><div class="pic-grid">`+set.images.map((im,i)=>
+    `<figure><img data-i="${i}" src="pictures/${im.file}" width="${im.w*z}" height="${im.h*z}" alt="${esc(im.name||im.file)}">
+     <figcaption>${im.name?esc(im.name)+' · ':''}${im.w}×${im.h} · ${im.bpp}bpp</figcaption></figure>`).join('')+'</div><div id="pic-big"><img alt=""></div>';
+  const big=$('pic-big');
+  mediaEl.querySelectorAll('.pic-grid img').forEach(e=>e.onclick=()=>{ big.firstChild.src=e.src; big.style.display='flex'; });
+  big.onclick=()=>big.style.display='none'; }); }
+$('picset').onchange=()=>{ picSet=+$('picset').value; showPics(); };
+$('picprev').onclick=()=>{ picSet=(picSet-1+pics.length)%pics.length; showPics(); };
+$('picnext').onclick=()=>{ picSet=(picSet+1)%pics.length; showPics(); };
+$('piczoom').onchange=showPics;
+
+// ---- inspection helpers (used for automated contact sheets) ----
+window.T3V = {
+  get cur(){ return cur; }, get list(){ return list; },
+  load(id){ const e=list.find(x=>x.id===id); return loadGLB('models/'+e.file,e.name); },
+  async strip(ids, clip=-1, frac=0.4, yaws=[0,90], size=300, head=false){
+    playing=false; const out=document.createElement('canvas'); out.width=yaws.length*size*ids.length; out.height=size; const g=out.getContext('2d'); let x=0;
+    for(const id of ids){ await this.load(id); setClip(clip<0?idleClip(cur.clips):Math.min(clip,cur.clips.length-1));
+      cur.action.time=cur.action.getClip().duration*frac; cur.mixer.update(0); frameModel();
+      if(head){ const v=new THREE.Vector3(); let [bn,zs]=typeof head==='string'?head.split(':'):['head']; const zoom=zs?+zs:bn==='head'?1:2.2; cur.root.traverse(o=>{ if(o.isBone&&o.name===bn) o.getWorldPosition(v); });
+        controls.target.copy(v).add(new THREE.Vector3(0,0.08,0)); camera.position.copy(controls.target).add(new THREE.Vector3(0.3,0.05,0.45).multiplyScalar(zoom)); }
+      const base=camera.position.clone().sub(controls.target);
+      for(const view of yaws){ const [yw,pt]=Array.isArray(view)?view:[view,0];   // yaw, pitch (degrees); head may be a bone name to close up on
+        const d=base.length(), dir=base.clone().applyAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(yw)).setY(0).normalize();
+        const p=THREE.MathUtils.degToRad(pt===0?Math.asin(base.y/d)*180/Math.PI:pt);
+        camera.position.copy(controls.target).add(dir.multiplyScalar(Math.cos(p)*d)).add(new THREE.Vector3(0,Math.sin(p)*d,0)); camera.lookAt(controls.target);
+        renderer.render(scene,camera); const c=renderer.domElement, s=Math.min(c.width,c.height);
+        g.drawImage(c,(c.width-s)/2,(c.height-s)/2,s,s,x,0,size,size); g.fillStyle='#ffcc66'; g.font='13px monospace'; g.fillText(`${id} ${cur.name} m${cur.clipIndex} ${yw}°${pt?'/'+pt+'°':''}`,x+4,16); x+=size; } }
+    return out.toDataURL('image/jpeg',0.85);
+  },
+  async forceShots(ids, xs=[0,8000,16000,24000,30720], size=300){
+    // Tekken Force stages from the game camera at several level positions (camera x in game units)
+    if(!arena) await loadArena(ids[0]);       // avoid racing the tab's default arena load
+    setTab('arenas'); $('achar').checked=false;
+    const out=document.createElement('canvas'); out.width=xs.length*size; out.height=ids.length*size; const g=out.getContext('2d');
+    for(let r=0;r<ids.length;r++){ await loadArena(ids[r]); showArenaView();
+      for(let c=0;c<xs.length;c++){ $('fx').value=xs[c]; frameArena(); for(const m of forceMixers) m.update(0.016);
+        for(const it of forceItems) it.quaternion.copy(camera.quaternion);
+        renderer.render(scene,camera); const cv=renderer.domElement, sh=cv.height, sw=Math.min(cv.width, sh*1.4);
+        g.drawImage(cv,(cv.width-sw)/2,0,sw,sh,c*size,r*size,size,size); g.fillStyle='#ffcc66'; g.font='13px monospace'; g.fillText(`${arena.name} x=${xs[c]}`,c*size+4,r*size+16); } }
+    return out.toDataURL('image/jpeg',0.85);
+  },
+  async arenaShots(ids, views=[[0,10],[90,10],[180,10],[270,10]], size=300, withChar=true){
+    // ids: arena indexes; views: [yaw, pitch] around the fight centre
+    setTab('arenas'); $('achar').checked=withChar; playing=false;
+    const out=document.createElement('canvas'); out.width=views.length*size; out.height=ids.length*size; const g=out.getContext('2d');
+    for(let r=0;r<ids.length;r++){ await loadArena(ids[r]); showArenaView();
+      for(let c=0;c<views.length;c++){ const [yw,pt]=views[c], d=3.4, a=THREE.MathUtils.degToRad(yw), p=THREE.MathUtils.degToRad(pt);
+        controls.target.set(0,0.9,0); camera.position.set(Math.sin(a)*Math.cos(p)*d,0.9+Math.sin(p)*d,Math.cos(a)*Math.cos(p)*d); camera.lookAt(controls.target);
+        renderer.render(scene,camera); const cv=renderer.domElement, s=Math.min(cv.width,cv.height);
+        g.drawImage(cv,(cv.width-s)/2,(cv.height-s)/2,s,s,c*size,r*size,size,size); g.fillStyle='#ffcc66'; g.font='13px monospace'; g.fillText(`${arena.name} ${yw}°/${pt}°`,c*size+4,r*size+16); } }
+    return out.toDataURL('image/jpeg',0.85);
+  },
+  async grid(ids, clip=-1, frac=0.4, yaws=[0,90,180], size=220, head=false){
+    // ids may be model ids or [modelId, clipIndex] pairs
+    const out=document.createElement('canvas'); out.width=yaws.length*size; out.height=ids.length*size; const g=out.getContext('2d');
+    for(let i=0;i<ids.length;i++){ const [id,cl]=Array.isArray(ids[i])?ids[i]:[ids[i],clip];
+      const src=await this.strip([id],cl,frac,yaws,size,head); const im=await new Promise(res=>{ const m=new Image(); m.onload=()=>res(m); m.src=src; }); g.drawImage(im,0,i*size); }
+    return out.toDataURL('image/jpeg',0.85);
+  }
+};
+
+const clock=new THREE.Clock();
+renderer.setAnimationLoop(()=>{ const dt=clock.getDelta();
+  if(cur&&cur.action){ if(playing) cur.mixer.update(dt*(+$('speed').value));
+    const n=Math.round(cur.action.getClip().duration*FPS)+1, f=Math.min(n-1,Math.round(cur.action.time*FPS));
+    $('frame').value=f; $('flabel').textContent=`${f+1} / ${n}`; hud.textContent=`${cur.name} · ${cur.action.getClip().name} · frame ${f+1}/${n}`; }
+  if(tab==='arenas'&&arena&&arena.strip&&arena.stripAt){ // its bottom on the point bottom_ahead in front at bottom_y, height rows tall
+    const a=arena.stripAt, r=a.bottom_ahead/1000, h=a.height*r*Math.tan(camera.fov*Math.PI/360)/240;
+    arena.strip.position.set(camera.position.x, -a.bottom_y/1000, camera.position.z); arena.strip.scale.set(r,h,r); }
+  if(tab==='arenas'){ for(const m of forceMixers) m.update(dt);
+    for(const it of forceItems){ it.quaternion.copy(camera.quaternion); } }   // pickups are camera-facing sprites
+  if(tab==='arenas'&&$('aorbit').checked){ const o=camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0,1,0),dt*0.25); camera.position.copy(controls.target).add(o); }
+  if(MEDIA_TABS.includes(tab)) return;
+  controls.update(); renderer.render(scene,camera); });
+</script>
+</body>
+</html>

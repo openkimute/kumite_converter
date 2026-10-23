@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kumite_converter: convert your Tekken 3 disc for OpenKumite</title>
+<style>
+  body { margin: 0 auto; max-width: 760px; padding: 16px; background: #000; color: #ddd; font: 14px sans-serif; }
+  a { color: #9cf; }
+  fieldset { border: 1px solid #444; margin: 12px 0; }
+  .note { color: #888; font-size: 13px; }
+  #checks, #error { white-space: pre-wrap; }
+  #error { color: #f66; }
+  #cs-box.over { outline: 2px dashed #9cf; }
+  progress { width: 100%; }
+  #log { height: 220px; overflow: auto; font: 11px monospace; color: #cfc; background: #111; padding: 6px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h2>kumite_converter: convert your Tekken 3 disc for OpenKumite</h2>
+<p>The game is made from your own disc images, here in the browser: nothing is uploaded. <span id="where">The result
+stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB with the extras).</p>
+<div id="checks">Checking the browser…</div>
+<div id="state"></div>
+<fieldset>
+  <legend>Tekken 3 disc (required)</legend>
+  <input type="file" id="t3" multiple accept=".bin,.img,.iso">
+  <div class="note">Track 1 (the game), and Track 2 (the CD music) if your copy has one: pick both.</div>
+</fieldset>
+<fieldset>
+  <legend>Tekken 2 disc (optional: its fighters)</legend>
+  <input type="file" id="t2" multiple accept=".bin,.img,.iso">
+  <div class="note">Track 1, and Tracks 2 and 3 if you have them.</div>
+</fieldset>
+<fieldset id="cs-box">
+  <legend>Counter-Strike (optional: its levels as stages)</legend>
+  <input type="file" id="cs" webkitdirectory>
+  <div class="note">The installed Half-Life folder (with cstrike/ and valve/ in it): pick it, or drop it here.</div>
+</fieldset>
+<p><button id="go">Convert</button> <button id="check">Check the converted game</button> <button id="remove">Delete it</button></p>
+<progress id="bar" max="1" value="0"></progress>
+<div id="status"></div>
+<div id="error"></div>
+<div id="log"></div>
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  const GB = 1e9;
+  const say = (m) => { $('status').textContent = m; };
+  const fail = (m) => { $('error').textContent = m; };
+  const log = (line) => {
+    const l = $('log');
+    l.textContent = (l.textContent + line + '\n').slice(-20000);
+    l.scrollTop = l.scrollHeight;
+  };
+  let worker, busy = false, lock = null, csFiles = null;
+  // Chrome and Edge: the result goes into a folder on the disk the user picks, as the command line's (the same tree),
+  // remembered for the game (OpenKumite's index.html); other browsers (and Chrome before 137: no JSPI) keep it in OPFS
+  const disk = !!window.showDirectoryPicker && !!WebAssembly.Suspending;
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+  // the folder's handle in IndexedDB (as OpenKumite's index.html keeps it, under the same names)
+  const idb = (op, ...a) => new Promise((ok, no) => {
+    const r = indexedDB.open('openkumite', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('handles');
+    r.onerror = () => no(r.error);
+    r.onsuccess = () => {
+      const q = r.result.transaction('handles', op === 'get' ? 'readonly' : 'readwrite').objectStore('handles')[op](...a);
+      q.onsuccess = () => ok(q.result);
+      q.onerror = () => no(q.error);
+    };
+  });
+  // what the converter writes (a folder holding anything else is not one to fill: it removes characters/ and others)
+  const OURS = ['audio', 'characters', 'gamedata', 'manifest.json', 'pictures', 'stages', 'video', '.tmp'];
+  if (disk) {
+    $('where').textContent = 'The result goes into a folder you pick, as the command-line converter writes it';
+    $('go').textContent = 'Convert into a folder…';
+    $('remove').hidden = true;
+  }
+  const ask = (msg) => new Promise((resolve) => {
+    worker ??= new Worker('convert_worker.js', { type: 'module' });
+    worker.onmessage = ({ data }) => {
+      if (data.log !== undefined) return progress(data.log);
+      if (data.panic) return log(`panic: ${data.panic}`);
+      if (data.error) { worker.terminate(); worker = null; } // (after a panic the module is unusable)
+      resolve(data);
+    };
+    worker.onerror = (e) => { worker = null; resolve({ error: e.message || 'the converter did not start' }); };
+    worker.postMessage(msg);
+  });
+
+  // the files' tracks by their names ("… (Track 2).bin"); one file alone is track 1
+  const tracks = (input, n) => {
+    const files = [...input.files].filter((f) => !/\.cue$/i.test(f.name));
+    const out = Array(n).fill(null);
+    for (const f of files) {
+      const t = /track\s*0*(\d+)/i.exec(f.name);
+      const i = t ? +t[1] - 1 : files.length === 1 ? 0 : -1;
+      if (i >= 0 && i < n) out[i] = f;
+    }
+    return out;
+  };
+
+  // the Counter-Strike folder: paths below the folder picked or dropped
+  const below = (path) => path.split('/').filter(Boolean).slice(1).join('/');
+  $('cs').onchange = () => { csFiles = [...$('cs').files].map((f) => [below(f.webkitRelativePath), f]); };
+  const box = $('cs-box');
+  box.ondragover = (e) => { e.preventDefault(); box.classList.add('over'); };
+  box.ondragleave = () => box.classList.remove('over');
+  box.ondrop = async (e) => {
+    e.preventDefault();
+    box.classList.remove('over');
+    const entry = e.dataTransfer.items[0]?.webkitGetAsEntry();
+    if (!entry?.isDirectory) return fail('Drop the folder itself.');
+    const found = [];
+    const walk = async (dir) => {
+      const r = dir.createReader();
+      for (let batch; (batch = await new Promise((ok, no) => r.readEntries(ok, no))).length;) {
+        for (const x of batch) {
+          if (x.isDirectory) await walk(x);
+          else found.push([below(x.fullPath), await new Promise((ok, no) => x.file(ok, no))]);
+        }
+      }
+    };
+    try { await walk(entry); } catch (err) { return fail(`Cannot read the dropped folder: ${err.message}`); }
+    csFiles = found;
+    say(`Counter-Strike: ${found.length} files from ${entry.name}`);
+  };
+
+  // the steps' progress, from the log's "[step] …" lines (the converter's order)
+  const t3Steps = ['characters', 'stages', 'pictures', 'media', 'gamedata', 'effects', 'theater', 'shadows'];
+  const progress = (line) => {
+    log(line);
+    const step = /^\[(\w+)\]/.exec(line)?.[1];
+    const i = busy.plan.indexOf(step);
+    if (i >= 0) $('bar').value = i / busy.plan.length;
+    if (i >= 0) say(`Converting: ${step} (${Math.round((performance.now() - busy.t0) / 1000)} s)`);
+  };
+
+  const opfs = () => navigator.storage.getDirectory();
+  // the pack's index and a file from it, or null
+  const pack = async () => {
+    try {
+      const root = await opfs();
+      const idx = JSON.parse(await (await (await root.getFileHandle('assets.idx')).getFile()).text());
+      const data = await (await root.getFileHandle('assets.pack')).getFile();
+      const read = (path) => idx.files[path] && data.slice(idx.files[path][0], idx.files[path][0] + idx.files[path][1]).text();
+      return { idx, read, size: data.size };
+    } catch { return null; }
+  };
+
+  async function showState() {
+    if (disk) {
+      const h = await idb('get', 'folder').catch(() => null);
+      $('state').textContent = h ? `The last conversion went into the folder "${h.name}" (the game opens it).` : '';
+      return;
+    }
+    const p = await pack();
+    const manifest = p && (await p.read('manifest.json'));
+    if (manifest) {
+      $('state').innerHTML = `A converted game is here (fingerprint ${JSON.parse(manifest).fingerprint}): open it with OpenKumite.`;
+    } else if (p?.idx.done?.length) {
+      $('state').textContent = `An interrupted conversion is here (done: ${p.idx.done.join(', ')}). Pick the same files and press Convert: it goes on from there.`;
+    } else $('state').textContent = '';
+  }
+
+  async function checks() {
+    const bad = [];
+    if (!navigator.storage?.getDirectory || !window.Worker) {
+      bad.push('This browser has no Origin Private File System: use a current Chrome, Edge, Firefox, or Safari 17 or later.');
+    } else {
+      try { await opfs(); } catch (e) {
+        bad.push(`The browser refuses this site its storage (${e.name}): a private window? Open the page in a normal window.`);
+      }
+      if (!bad.length && !(await ask({ cmd: 'probe' })).probe) {
+        bad.push('This browser cannot write the converted files (no synchronous file access): use Safari 17 or later, or a current Chrome, Edge or Firefox.');
+      }
+    }
+    if (bad.length) { $('go').disabled = true; $('checks').textContent = bad.join('\n'); return; }
+    const { quota = 0, usage = 0 } = await navigator.storage.estimate();
+    $('checks').textContent = disk ? '' : `Storage: ${((quota - usage) / GB).toFixed(1)} GB free for this site.`;
+    await showState();
+  }
+
+  $('go').onclick = async () => {
+    if (busy) return;
+    fail('');
+    const t3 = tracks($('t3'), 2);
+    const t2 = $('t2').files.length ? tracks($('t2'), 3) : null;
+    if (!t3[0]) return fail('Pick the Tekken 3 disc\'s Track 1.');
+    if (t2 && !t2[0]) return fail('Pick the Tekken 2 disc\'s Track 1.');
+    // the pack's peak (measured: 1.55 GB for Tekken 3, 4.14 GB with both extras; shortcut: the split between the
+    // two extras is a guess, measure Counter-Strike alone when it matters)
+    const needs = (1.6 + (csFiles?.length ? 0.8 : 0) + (t2 ? 1.8 : 0)) * GB;
+    let dir = null, room = 0;
+    if (disk) {
+      try { dir = await showDirectoryPicker({ id: 'openkumite', mode: 'readwrite' }); } catch (e) {
+        return e.name === 'AbortError' ? undefined : fail(`Cannot open the folder: ${e.message}`);
+      }
+      const other = [];
+      for await (const name of dir.keys()) if (!OURS.includes(name) && !name.startsWith('.')) other.push(name);
+      if (other.length) {
+        return fail(`The folder "${dir.name}" holds other things (${other.slice(0, 3).join(', ')}): pick an empty folder, or one the converter wrote.`);
+      }
+      await idb('put', dir, 'folder').catch(() => {});
+    } else {
+      // (from the click: Firefox asks the user; storage that may be cleared is no place for 2 GB)
+      const persisted = navigator.storage.persist?.();
+      const { quota = 0, usage = 0 } = await navigator.storage.estimate();
+      room = quota - usage + ((await pack())?.size ?? 0);
+      if (room < needs) {
+        await persisted;
+        const after = await navigator.storage.estimate();
+        if (after.quota - after.usage < needs) {
+          return fail(`Not enough space: the conversion needs about ${(needs / GB).toFixed(1)} GB, the browser gives this site ${(room / GB).toFixed(1)} GB. Free some disk space (or allow this site to store data) and try again.`);
+        }
+      }
+    }
+    busy = { t0: performance.now(), plan: [...t3Steps, ...(csFiles?.length ? ['cs'] : []), ...(t2 ? ['t2'] : [])] };
+    try { lock = await navigator.wakeLock?.request('screen'); } catch { lock = null; }
+    $('bar').value = 0;
+    $('log').textContent = '';
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const r = await ask({ cmd: 'convert', t3, t2, cs: csFiles?.length ? csFiles : null, now: stamp, dir });
+    const seconds = Math.round((performance.now() - busy.t0) / 1000);
+    busy = false;
+    lock?.release();
+    lock = null;
+    if (r.done) {
+      $('bar').value = 1;
+      say(`Done in ${seconds} s. Fingerprint ${r.done}.`);
+      $('state').innerHTML = `The game is converted${dir ? ` into "${esc(dir.name)}"` : ''} (fingerprint ${r.done}): open it with OpenKumite.`;
+    } else {
+      say(`Stopped after ${seconds} s.`);
+      fail(r.quota && !dir
+        ? `Not enough space: the browser ran out of room for this site (it gives ${(room / GB).toFixed(1)} GB; about ${(needs / GB).toFixed(1)} GB are needed). The partial output was removed.`
+        : `The conversion failed: ${r.error}`);
+      await showState();
+    }
+  };
+  // the screen lock goes when the page is hidden: again on return
+  document.addEventListener('visibilitychange', async () => {
+    if (busy && document.visibilityState === 'visible') try { lock = await navigator.wakeLock?.request('screen'); } catch {}
+  });
+
+  $('check').onclick = async () => {
+    if (busy) return;
+    // (the remembered folder; its access asked for again from this click when the browser forgot it)
+    const h = disk ? await idb('get', 'folder').catch(() => null) : null;
+    const dir = h && (await h.requestPermission({ mode: 'read' }).catch(() => 'denied')) === 'granted' ? h : null;
+    if (disk && !dir) return fail('No converted folder: convert into one first.');
+    say('Computing the fingerprint of the converted files…');
+    const t0 = performance.now();
+    const r = await ask({ cmd: 'fingerprint', dir });
+    say(r.error ? '' : `Fingerprint ${r.fingerprint} (${Math.round(performance.now() - t0)} ms).`);
+    fail(r.error ? `No converted game: ${r.error}` : '');
+  };
+  $('remove').onclick = async () => {
+    if (busy || !confirm('Delete the converted game from this browser?')) return;
+    const root = await opfs();
+    for (const name of ['assets.pack', 'assets.idx']) await root.removeEntry(name).catch(() => {});
+    say('Deleted.');
+    await showState();
+  };
+  checks();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Dev: copies a served pack (pack/assets.pack and pack/assets.idx: web/pack_assets.mjs) into this site's OPFS, as
+     convert.html leaves it; ?clear removes it. The page's title says when it is done. -->
+<meta charset="utf-8">
+<title>import</title>
+<pre id="out"></pre>
+<script type="module">
+  const say = (m) => { document.getElementById('out').textContent += `${m}\n`; document.title = m; };
+  try {
+    const dir = await navigator.storage.getDirectory();
+    for (const name of ['assets.idx', 'assets.pack']) await dir.removeEntry(name).catch(() => {});
+    if (!location.search.includes('clear')) {
+      // the index last, as the converter: no index, no pack
+      for (const name of ['assets.pack', 'assets.idx']) {
+        const r = await fetch(`pack/${name}`);
+        if (!r.ok) throw new Error(`pack/${name}: HTTP ${r.status}`);
+        await r.body.pipeTo(await (await dir.getFileHandle(name, { create: true })).createWritable());
+      }
+    }
+    say(`done ${JSON.stringify(await navigator.storage.estimate())}`);
+  } catch (e) { say(`failed: ${e}`); }
+</script>
