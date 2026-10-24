@@ -1,0 +1,59 @@
+# The browser converter on GitHub Pages (https://openkimute.github.io/kumite_converter/) from main: web/ with the
+# wasm built as convert_web/build.sh builds it (the release's web.zip, the same files). The site is static; the
+# conversion runs in the visitor's browser and nothing is uploaded.
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true # web/background.webp
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - name: Build
+        run: |
+          mkdir -p target/tools/bin && ln -s "$(command -v wasm-bindgen)" target/tools/bin/wasm-bindgen
+          sh convert_web/build.sh
+          mkdir -p _site/pkg
+          cp web/convert.html web/convert_worker.js web/background.webp _site/
+          cp web/convert.html _site/index.html
+          cp web/pkg/convert_web* _site/pkg/
+          ls -l _site _site/pkg
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}convert.html
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

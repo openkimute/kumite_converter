@@ -3,56 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>kumite_converter: convert your Tekken 3 disc for OpenKumite</title>
+<title>Kumite Converter</title>
 <style>
-  body { margin: 0 auto; max-width: 760px; padding: 16px; background: #000; color: #ddd; font: 14px sans-serif; }
-  a { color: #9cf; }
-  fieldset { border: 1px solid #444; margin: 12px 0; }
-  .note { color: #888; font-size: 13px; }
-  #checks, #error { white-space: pre-wrap; }
-  #error { color: #f66; }
-  #cs-box.over { outline: 2px dashed #9cf; }
-  progress { width: 100%; }
-  #log { height: 220px; overflow: auto; font: 11px monospace; color: #cfc; background: #111; padding: 6px; white-space: pre-wrap; }
+  :root {
+    --red: #d3222c; --red-hi: #ff3b44; --ink: #f4efe6; --dim: #a9a39a; --bad: #ff6b6b; --ok: #7ee08a;
+    --panel: rgba(8, 8, 10, 0.78); --line: rgba(244, 239, 230, 0.14);
+    --head: "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: #0b0b0d; }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh; color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* the arena (background.webp), darkened towards the menu */
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.9) 100%),
+      url(background.webp) center top / cover no-repeat fixed, #0b0b0d;
+    /* the menu at the bottom, on the arena floor, the logo (the image's top quarter) above it: one screen, no scrolling */
+    display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 16px 16px 10px;
+  }
+  main { position: relative; isolation: isolate; width: 100%; max-width: 720px; padding: 14px 22px 12px 26px; }
+  /* the panel (its cut corners would clip the log above it) */
+  main::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--panel); border-left: 4px solid var(--red);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  }
+  h1 { margin: 0; font: italic 800 26px/1.05 var(--head); letter-spacing: 0.04em; text-transform: uppercase; }
+  h1 span { color: var(--red); }
+  h1 span::before { content: "▌"; }
+  .sub { margin: 2px 0 0; color: var(--dim); font-size: 12px; }
+  .msgs { font-size: 12px; margin-top: 2px; }
+  #checks { color: var(--dim); white-space: pre-wrap; }
+  #checks.bad { color: var(--bad); }
+  #state { color: var(--ok); }
+  #state:empty, #checks:empty { display: none; }
+
+  /* the sources: one menu row each */
+  .rows { margin: 8px 0 10px; }
+  .row {
+    display: grid; grid-template-columns: 16px auto 1fr auto; align-items: center; gap: 2px 10px;
+    padding: 6px 4px; border-bottom: 1px dashed var(--line); transition: background 0.15s;
+  }
+  .row:hover, .row.over { background: rgba(211, 34, 44, 0.12); }
+  .row.over { outline: 2px dashed var(--red-hi); outline-offset: -2px; }
+  .mark { color: var(--dim); font-size: 12px; }
+  .row.picked .mark { color: var(--red-hi); }
+  .name { font: italic 700 17px/1.1 var(--head); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .name small { font: 600 10px var(--head); letter-spacing: 0.14em; color: var(--dim); font-style: normal; margin-left: 4px; }
+  .files { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .row.picked .files { color: var(--ink); }
+  .pick {
+    font: italic 700 12px var(--head); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); cursor: pointer;
+    border: 1px solid var(--ink); padding: 4px 12px; transform: skewX(-12deg); user-select: none; white-space: nowrap;
+  }
+  .pick:hover { background: var(--ink); color: #000; }
+  .row.picked .pick::after { content: " ✔"; color: var(--ok); }
+  .row.picked .pick:hover::after { color: #000; }
+  input[type=file] { display: none; }
+  fieldset:disabled .pick { opacity: 0.4; pointer-events: none; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+
+  /* the bar and START / CANCEL beside it */
+  .run { display: grid; grid-template-columns: 1fr auto auto; grid-template-areas: "track pct go" "status status go"; gap: 4px 12px; align-items: center; }
+  .track { grid-area: track; height: 10px; background: rgba(244, 239, 230, 0.1); transform: skewX(-20deg); overflow: hidden; }
+  #fill {
+    height: 100%; width: 0; transition: width 0.4s ease-out;
+    background: linear-gradient(90deg, #8f141b, var(--red) 60%, var(--red-hi));
+    box-shadow: 0 0 14px rgba(255, 59, 68, 0.6);
+  }
+  #pct { grid-area: pct; font: italic 800 18px var(--head); min-width: 2.8em; text-align: right; }
+  #status { grid-area: status; font-size: 12px; color: var(--dim); min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #go {
+    grid-area: go; font: italic 800 20px var(--head); letter-spacing: 0.32em; text-indent: 0.32em; text-transform: uppercase;
+    color: #fff; background: var(--red); border: 0; padding: 12px 0; width: 190px; cursor: pointer;
+    clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); transition: background 0.15s, transform 0.1s;
+  }
+  #go:hover:not(:disabled) { background: var(--red-hi); }
+  #go:active:not(:disabled) { transform: scale(0.97); }
+  #go:disabled { background: #444; color: #888; cursor: not-allowed; }
+  #go.cancel { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); clip-path: none; transform: skewX(-12deg); }
+  #go.cancel:hover { background: var(--ink); color: #000; }
+  #go:focus-visible, .pick:focus-visible, .links button:focus-visible, summary:focus-visible { outline: 2px solid var(--red-hi); outline-offset: 3px; }
+  #error { color: var(--bad); font-size: 12px; white-space: pre-wrap; margin-top: 6px; max-height: 4.2em; overflow: auto; }
+  #error:empty { display: none; }
+
+  .links { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+  .links button, summary {
+    background: none; border: 0; color: var(--dim); font: 600 11px var(--head); letter-spacing: 0.14em;
+    text-transform: uppercase; cursor: pointer; padding: 2px 0;
+  }
+  .links button:hover:not(:disabled), summary:hover { color: var(--ink); }
+  .links button:disabled { opacity: 0.4; cursor: default; }
+  details { margin-left: auto; }
+  /* the log: over the arena above the menu, not making the page longer */
+  #log { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); height: min(240px, 38vh); overflow: auto; padding: 8px;
+    font: 11px/1.4 ui-monospace, monospace; color: #cfc; background: rgba(0, 0, 0, 0.85); white-space: pre-wrap;
+    border-left: 4px solid var(--red); }
+  footer { margin-top: 6px; font-size: 10px; color: rgba(244, 239, 230, 0.45); text-align: center; }
+  @media (max-width: 560px) {
+    main { padding: 12px 14px 10px 18px; }
+    h1 { font-size: 22px; }
+    .row { grid-template-columns: 14px 1fr auto; }
+    .files { grid-column: 2 / 4; grid-row: 2; }
+    .run { grid-template-columns: 1fr auto; grid-template-areas: "track pct" "status status" "go go"; }
+    #go { width: 100%; margin-top: 4px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<h2>kumite_converter: convert your Tekken 3 disc for OpenKumite</h2>
-<p>The game is made from your own disc images, here in the browser: nothing is uploaded. <span id="where">The result
-stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB with the extras).</p>
-<div id="checks">Checking the browser…</div>
-<div id="state"></div>
-<fieldset>
-  <legend>Tekken 3 disc (required)</legend>
-  <input type="file" id="t3" multiple accept=".bin,.img,.iso">
-  <div class="note">Track 1 (the game), and Track 2 (the CD music) if your copy has one: pick both.</div>
-</fieldset>
-<fieldset>
-  <legend>Tekken 2 disc (optional: its fighters)</legend>
-  <input type="file" id="t2" multiple accept=".bin,.img,.iso">
-  <div class="note">Track 1, and Tracks 2 and 3 if you have them.</div>
-</fieldset>
-<fieldset id="cs-box">
-  <legend>Counter-Strike (optional: its levels as stages)</legend>
-  <input type="file" id="cs" webkitdirectory>
-  <div class="note">The installed Half-Life folder (with cstrike/ and valve/ in it): pick it, or drop it here.</div>
-</fieldset>
-<p><button id="go">Convert</button> <button id="check">Check the converted game</button> <button id="remove">Delete it</button></p>
-<progress id="bar" max="1" value="0"></progress>
-<div id="status"></div>
-<div id="error"></div>
-<div id="log"></div>
+<main>
+  <h1>Kumite <span>Converter</span></h1>
+  <p class="sub">Your own discs into OpenKumite's game, in the browser: nothing is uploaded. <span id="where">Kept in
+    this browser's storage</span> (1.6 GB; 4.2 GB with both extras).</p>
+  <div class="msgs"><div id="checks">Checking the browser…</div><div id="state"></div></div>
+
+  <fieldset id="inputs" class="rows">
+    <div class="row" id="t3-row">
+      <span class="mark">▶</span>
+      <span class="name">Tekken 3 disc<small>required</small></span>
+      <div class="files" id="t3-files">Track 1 and Track 2 (the CD music): pick or drop both</div>
+      <label class="pick" tabindex="0">Pick<input type="file" id="t3" multiple accept=".bin,.img,.iso"></label>
+    </div>
+    <div class="row" id="t2-row">
+      <span class="mark">▷</span>
+      <span class="name">Tekken 2 disc<small>optional</small></span>
+      <div class="files" id="t2-files">its fighters: Track 1, and Tracks 2 and 3 if you have them</div>
+      <label class="pick" tabindex="0">Pick<input type="file" id="t2" multiple accept=".bin,.img,.iso"></label>
+    </div>
+    <div class="row" id="cs-row">
+      <span class="mark">▷</span>
+      <span class="name">Counter-Strike<small>optional</small></span>
+      <div class="files" id="cs-files">its levels as stages: the Half-Life folder (cstrike/ and valve/ in it)</div>
+      <label class="pick" tabindex="0">Pick<input type="file" id="cs" webkitdirectory></label>
+    </div>
+  </fieldset>
+
+  <div class="run" aria-live="polite">
+    <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="bar"><div id="fill"></div></div>
+    <div id="pct">0%</div>
+    <div id="status">Pick the Tekken 3 disc, then Start.</div>
+    <button id="go">Start</button>
+  </div>
+  <div id="error" role="alert"></div>
+  <div class="links">
+    <button id="check">Check the converted game</button>
+    <button id="remove">Delete it</button>
+    <details id="details"><summary>Log</summary><div id="log"></div></details>
+  </div>
+</main>
+<footer>Unofficial. Not affiliated with Bandai Namco, Sony or Valve. Use your own legally obtained copies.</footer>
 <script type="module">
   const $ = (id) => document.getElementById(id);
   const GB = 1e9;
   const say = (m) => { $('status').textContent = m; };
-  const fail = (m) => { $('error').textContent = m; };
+  const fail = (m) => { $('error').textContent = m; if (m) $('details').open = true; };
   const log = (line) => {
     const l = $('log');
     l.textContent = (l.textContent + line + '\n').slice(-20000);
     l.scrollTop = l.scrollHeight;
   };
-  let worker, busy = false, lock = null, csFiles = null;
+  let worker, busy = false, lock = null, csFiles = null, ticker = 0;
+  const picked = { t3: [], t2: [] }; // the disc tracks picked or dropped
   // Chrome and Edge: the result goes into a folder on the disk the user picks, as the command line's (the same tree),
   // remembered for the game (OpenKumite's index.html); other browsers (and Chrome before 137: no JSPI) keep it in OPFS
   const disk = !!window.showDirectoryPicker && !!WebAssembly.Suspending;
@@ -71,8 +182,7 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
   // what the converter writes (a folder holding anything else is not one to fill: it removes characters/ and others)
   const OURS = ['audio', 'characters', 'gamedata', 'manifest.json', 'pictures', 'stages', 'video', '.tmp'];
   if (disk) {
-    $('where').textContent = 'The result goes into a folder you pick, as the command-line converter writes it';
-    $('go').textContent = 'Convert into a folder…';
+    $('where').textContent = 'Start asks for a folder and writes the game there';
     $('remove').hidden = true;
   }
   const ask = (msg) => new Promise((resolve) => {
@@ -85,11 +195,13 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
     };
     worker.onerror = (e) => { worker = null; resolve({ error: e.message || 'the converter did not start' }); };
     worker.postMessage(msg);
+    stop = () => { worker?.terminate(); worker = null; resolve({ cancelled: true }); };
   });
+  let stop = null; // cancels the running ask
 
   // the files' tracks by their names ("… (Track 2).bin"); one file alone is track 1
-  const tracks = (input, n) => {
-    const files = [...input.files].filter((f) => !/\.cue$/i.test(f.name));
+  const tracks = (list, n) => {
+    const files = list.filter((f) => !/\.cue$/i.test(f.name));
     const out = Array(n).fill(null);
     for (const f of files) {
       const t = /track\s*0*(\d+)/i.exec(f.name);
@@ -98,18 +210,31 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
     }
     return out;
   };
+  const mb = (n) => `${Math.round(n / 1e6)} MB`;
+  const showDisc = (key, n) => {
+    const t = tracks(picked[key], n);
+    const names = t.map((f, i) => f && `Track ${i + 1}: ${f.name} (${mb(f.size)})`).filter(Boolean);
+    $(`${key}-row`).classList.toggle('picked', !!t[0]);
+    if (picked[key].length) $(`${key}-files`).textContent = $(`${key}-files`).title = names.length ? names.join(' · ') : 'No "Track 1" among the files picked.';
+  };
+  const setDisc = (key, n, files) => { picked[key] = [...files]; showDisc(key, n); fail(''); };
+  $('t3').onchange = () => setDisc('t3', 2, $('t3').files);
+  $('t2').onchange = () => setDisc('t2', 3, $('t2').files);
 
   // the Counter-Strike folder: paths below the folder picked or dropped
   const below = (path) => path.split('/').filter(Boolean).slice(1).join('/');
-  $('cs').onchange = () => { csFiles = [...$('cs').files].map((f) => [below(f.webkitRelativePath), f]); };
-  const box = $('cs-box');
-  box.ondragover = (e) => { e.preventDefault(); box.classList.add('over'); };
-  box.ondragleave = () => box.classList.remove('over');
-  box.ondrop = async (e) => {
-    e.preventDefault();
-    box.classList.remove('over');
-    const entry = e.dataTransfer.items[0]?.webkitGetAsEntry();
-    if (!entry?.isDirectory) return fail('Drop the folder itself.');
+  const setCs = (files, name) => {
+    csFiles = files;
+    $('cs-row').classList.toggle('picked', files.length > 0);
+    $('cs-files').textContent = $('cs-files').title = `${name}: ${files.length} files`;
+    fail('');
+  };
+  $('cs').onchange = () => {
+    const files = [...$('cs').files];
+    setCs(files.map((f) => [below(f.webkitRelativePath), f]), files[0]?.webkitRelativePath.split('/')[0] ?? 'the folder');
+  };
+  // a folder dropped: its files, walked
+  const walkDropped = async (entry) => {
     const found = [];
     const walk = async (dir) => {
       const r = dir.createReader();
@@ -120,19 +245,77 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
         }
       }
     };
-    try { await walk(entry); } catch (err) { return fail(`Cannot read the dropped folder: ${err.message}`); }
-    csFiles = found;
-    say(`Counter-Strike: ${found.length} files from ${entry.name}`);
+    await walk(entry);
+    return found;
   };
+  // each row takes a drop: the disc rows files, the Counter-Strike row a folder
+  for (const [key, n] of [['t3', 2], ['t2', 3], ['cs', 0]]) {
+    const row = $(`${key}-row`);
+    row.ondragover = (e) => { e.preventDefault(); if (!busy) row.classList.add('over'); };
+    row.ondragleave = () => row.classList.remove('over');
+    row.ondrop = async (e) => {
+      e.preventDefault();
+      row.classList.remove('over');
+      if (busy) return;
+      if (key !== 'cs') return setDisc(key, n, e.dataTransfer.files);
+      const entry = e.dataTransfer.items[0]?.webkitGetAsEntry();
+      if (!entry?.isDirectory) return fail('Drop the Counter-Strike folder itself.');
+      try { setCs(await walkDropped(entry), entry.name); } catch (err) { fail(`Cannot read the dropped folder: ${err.message}`); }
+    };
+  }
+  // the Pick labels by keyboard
+  for (const l of document.querySelectorAll('.pick')) {
+    l.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); l.querySelector('input').click(); } };
+  }
 
-  // the steps' progress, from the log's "[step] …" lines (the converter's order)
+  // The progress: each step's share of the time (seconds, one thread, measured with kumite_convert --jobs 1 on a
+  // recent desktop: the browser's converter is one thread too), from the log's "[step] …" lines (the converter's
+  // order). Within a step the bar moves at the speed seen so far.
+  const WEIGHT = { characters: 27, stages: 0.3, pictures: 0.2, media: 51, gamedata: 1.7, effects: 0.1, theater: 0.1, shadows: 0.1, cs: 5, t2: 140 };
+  const NAMES = {
+    characters: 'Fighters', stages: 'Stages', pictures: 'Pictures', media: 'Sound, music and movies', gamedata: 'Game data',
+    effects: 'Effects', theater: 'Theater', shadows: 'Shadows', cs: 'Counter-Strike levels', t2: 'Tekken 2 fighters',
+  };
   const t3Steps = ['characters', 'stages', 'pictures', 'media', 'gamedata', 'effects', 'theater', 'shadows'];
+  const setBar = (f) => {
+    const p = Math.max(0, Math.min(100, f * 100));
+    $('fill').style.width = `${p}%`;
+    $('pct').textContent = `${Math.floor(p)}%`;
+    $('bar').setAttribute('aria-valuenow', Math.floor(p));
+  };
+  const clock = (s) => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')} s`);
+  const total = (plan) => plan.reduce((a, s) => a + WEIGHT[s], 0);
+  const tick = () => {
+    if (!busy) return;
+    const now = performance.now() / 1000;
+    const { plan, i, stepAt, doneW, t0 } = busy;
+    const all = total(plan);
+    // seconds per weight unit: from the finished steps once they are long enough to tell, else 4 (a browser's ~5 min)
+    const rate = doneW > 10 ? (stepAt - t0) / doneW : 4;
+    let part = 0;
+    if (i >= 0) {
+      // linear to 90% of the step's expected time, then slowing (a step longer than expected)
+      const w = WEIGHT[plan[i]];
+      const x = (now - stepAt) / (w * rate);
+      part = w * (x < 0.9 ? x : 0.9 + 0.09 * (1 - Math.exp((0.9 - x) / 0.1)));
+    }
+    setBar((doneW + part) / all);
+    const left = Math.max(0, (all - doneW - part) * rate);
+    const step = i >= 0 ? `${NAMES[plan[i]]} (${i + 1}/${plan.length})` : 'Starting';
+    say(`${step} · ${clock(now - t0)}${doneW > 10 ? ` · about ${clock(left)} left` : ''}`);
+  };
   const progress = (line) => {
     log(line);
+    if (!busy) return;
     const step = /^\[(\w+)\]/.exec(line)?.[1];
     const i = busy.plan.indexOf(step);
-    if (i >= 0) $('bar').value = i / busy.plan.length;
-    if (i >= 0) say(`Converting: ${step} (${Math.round((performance.now() - busy.t0) / 1000)} s)`);
+    if (i > busy.i) {
+      const now = performance.now() / 1000;
+      busy.doneW = busy.plan.slice(0, i).reduce((a, s) => a + WEIGHT[s], 0);
+      busy.i = i;
+      busy.stepAt = now;
+      tick();
+    }
   };
 
   const opfs = () => navigator.storage.getDirectory();
@@ -156,9 +339,9 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
     const p = await pack();
     const manifest = p && (await p.read('manifest.json'));
     if (manifest) {
-      $('state').innerHTML = `A converted game is here (fingerprint ${JSON.parse(manifest).fingerprint}): open it with OpenKumite.`;
+      $('state').textContent = `A converted game is here (fingerprint ${JSON.parse(manifest).fingerprint}): open it with OpenKumite.`;
     } else if (p?.idx.done?.length) {
-      $('state').textContent = `An interrupted conversion is here (done: ${p.idx.done.join(', ')}). Pick the same files and press Convert: it goes on from there.`;
+      $('state').textContent = `An unfinished conversion is here (done: ${p.idx.done.join(', ')}). Pick the same files and press Start: it goes on from there.`;
     } else $('state').textContent = '';
   }
 
@@ -174,17 +357,32 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
         bad.push('This browser cannot write the converted files (no synchronous file access): use Safari 17 or later, or a current Chrome, Edge or Firefox.');
       }
     }
-    if (bad.length) { $('go').disabled = true; $('checks').textContent = bad.join('\n'); return; }
+    if (bad.length) {
+      $('go').disabled = true;
+      $('checks').classList.add('bad');
+      $('checks').textContent = bad.join('\n');
+      return;
+    }
     const { quota = 0, usage = 0 } = await navigator.storage.estimate();
     $('checks').textContent = disk ? '' : `Storage: ${((quota - usage) / GB).toFixed(1)} GB free for this site.`;
     await showState();
   }
 
-  $('go').onclick = async () => {
-    if (busy) return;
+  // running: the button is Cancel, the inputs and the other actions wait
+  const running = (on) => {
+    $('go').textContent = on ? 'Cancel' : 'Start';
+    $('go').classList.toggle('cancel', on);
+    $('inputs').disabled = on;
+    $('check').disabled = $('remove').disabled = on;
+    document.body.classList.toggle('running', on);
+    clearInterval(ticker);
+    if (on) ticker = setInterval(tick, 250);
+  };
+
+  async function start() {
     fail('');
-    const t3 = tracks($('t3'), 2);
-    const t2 = $('t2').files.length ? tracks($('t2'), 3) : null;
+    const t3 = tracks(picked.t3, 2);
+    const t2 = picked.t2.length ? tracks(picked.t2, 3) : null;
     if (!t3[0]) return fail('Pick the Tekken 3 disc\'s Track 1.');
     if (t2 && !t2[0]) return fail('Pick the Tekken 2 disc\'s Track 1.');
     // the pack's peak (measured: 1.55 GB for Tekken 3, 4.14 GB with both extras; shortcut: the split between the
@@ -214,30 +412,39 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
         }
       }
     }
-    busy = { t0: performance.now(), plan: [...t3Steps, ...(csFiles?.length ? ['cs'] : []), ...(t2 ? ['t2'] : [])] };
+    const t0 = performance.now() / 1000;
+    busy = { t0, plan: [...t3Steps, ...(csFiles?.length ? ['cs'] : []), ...(t2 ? ['t2'] : [])], i: -1, stepAt: t0, doneW: 0 };
     try { lock = await navigator.wakeLock?.request('screen'); } catch { lock = null; }
-    $('bar').value = 0;
+    setBar(0);
     $('log').textContent = '';
+    running(true);
+    tick();
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     const r = await ask({ cmd: 'convert', t3, t2, cs: csFiles?.length ? csFiles : null, now: stamp, dir });
-    const seconds = Math.round((performance.now() - busy.t0) / 1000);
+    const took = clock(performance.now() / 1000 - t0);
     busy = false;
+    stop = null;
+    running(false);
     lock?.release();
     lock = null;
     if (r.done) {
-      $('bar').value = 1;
-      say(`Done in ${seconds} s. Fingerprint ${r.done}.`);
+      setBar(1);
+      say(`Done in ${took}. Fingerprint ${r.done}.`);
       $('state').innerHTML = `The game is converted${dir ? ` into "${esc(dir.name)}"` : ''} (fingerprint ${r.done}): open it with OpenKumite.`;
+    } else if (r.cancelled) {
+      say(`Cancelled after ${took}. ${dir ? 'Start converts again from the beginning.' : 'The finished steps are kept: Start goes on from there.'}`);
+      await showState();
     } else {
-      say(`Stopped after ${seconds} s.`);
+      say(`Stopped after ${took}.`);
       fail(r.quota && !dir
         ? `Not enough space: the browser ran out of room for this site (it gives ${(room / GB).toFixed(1)} GB; about ${(needs / GB).toFixed(1)} GB are needed). The partial output was removed.`
         : `The conversion failed: ${r.error}`);
       await showState();
     }
-  };
+  }
+  $('go').onclick = () => (busy ? stop?.() : start());
   // the screen lock goes when the page is hidden: again on return
   document.addEventListener('visibilitychange', async () => {
     if (busy && document.visibilityState === 'visible') try { lock = await navigator.wakeLock?.request('screen'); } catch {}
@@ -245,6 +452,7 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
 
   $('check').onclick = async () => {
     if (busy) return;
+    fail('');
     // (the remembered folder; its access asked for again from this click when the browser forgot it)
     const h = disk ? await idb('get', 'folder').catch(() => null) : null;
     const dir = h && (await h.requestPermission({ mode: 'read' }).catch(() => 'denied')) === 'granted' ? h : null;
@@ -252,6 +460,7 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
     say('Computing the fingerprint of the converted files…');
     const t0 = performance.now();
     const r = await ask({ cmd: 'fingerprint', dir });
+    stop = null;
     say(r.error ? '' : `Fingerprint ${r.fingerprint} (${Math.round(performance.now() - t0)} ms).`);
     fail(r.error ? `No converted game: ${r.error}` : '');
   };
@@ -260,6 +469,7 @@ stays in this browser's storage for this site</span> (about 1.6 GB; up to 4.2 GB
     const root = await opfs();
     for (const name of ['assets.pack', 'assets.idx']) await root.removeEntry(name).catch(() => {});
     say('Deleted.');
+    setBar(0);
     await showState();
   };
   checks();

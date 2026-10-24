@@ -107,7 +107,14 @@ onmessage = async ({ data }) => {
     dir = data.dir ?? null;
     folders = new Map();
     for (const name of dir ? [] : ['assets.pack', 'assets.idx']) {
-      handles.push(await (await root.getFileHandle(name, { create: true })).createSyncAccessHandle());
+      const file = await root.getFileHandle(name, { create: true });
+      // (a cancelled conversion's worker, terminated, lets go of its handles a moment later)
+      for (let tries = 0; ; tries++) {
+        try { handles.push(await file.createSyncAccessHandle()); break; } catch (e) {
+          if (e?.name !== 'NoModificationAllowedError' || tries >= 50) throw e;
+          await new Promise((ok) => setTimeout(ok, 100));
+        }
+      }
     }
     if (data.cmd === 'fingerprint') return postMessage({ fingerprint: await fingerprint(!!dir) });
     files = [];
