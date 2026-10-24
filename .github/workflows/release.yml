@@ -125,6 +125,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          lfs: true # web/background.webp
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip1, wasm32-unknown-unknown
@@ -142,7 +144,7 @@ jobs:
           mkdir -p target/tools/bin && ln -s "$(command -v wasm-bindgen)" target/tools/bin/wasm-bindgen
           sh convert_web/build.sh
           d=kumite_convert-$TAG-web
-          mkdir -p "$d/pkg" && cp web/convert.html web/convert_worker.js README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
+          mkdir -p "$d/pkg" && cp web/convert.html web/convert_worker.js web/background.webp README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
           cp web/pkg/convert_web* "$d/pkg/"
           zip -qr "$d.zip" "$d"
       - uses: actions/upload-artifact@v7

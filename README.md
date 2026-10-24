@@ -42,7 +42,8 @@ target/release/kumite_convert --t3 "Tekken_3_(USA)_(Track 1).bin" \
 beside each track 1. The output is about 1.4 GB (3.1 GB with both extras), with `manifest.json` (what was converted,
 and a fingerprint online play compares).
 
-In a browser: `sh convert_web/build.sh`, then `target/release/serve 8770 web` and open
+In a browser, nothing to install: <https://openkimute.github.io/kumite_converter/> (the converter runs in your browser;
+nothing is uploaded). Locally: `sh convert_web/build.sh`, then `target/release/serve 8770 web` and open
 <http://127.0.0.1:8770/convert.html>.
 
 ## Repository

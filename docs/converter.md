@@ -124,6 +124,7 @@ All but `bsp2glb` refresh the manifest's fingerprint. Details: [cs_levels/README
 
 ## In the browser: `web/convert.html`
 
+The site <https://openkimute.github.io/kumite_converter/> is `web/` from main (`.github/workflows/pages.yml`).
 `sh convert_web/build.sh` builds it into `web/pkg/`; `target/release/serve 8770 web` serves it at
 <http://127.0.0.1:8770/convert.html>. Nothing leaves the user's computer. Dev: `node web/pack_assets.mjs ASSETS OUT`
 makes a converted folder into the browser's pack, and `web/import_pack.html` copies a served `web/pack/` (a link to
@@ -131,7 +132,11 @@ OUT) into the site's OPFS (`?clear` removes it).
 
 - **Pick:** the Tekken 3 image's track 1 (and track 2 for the CD music); optionally the Tekken 2 tracks; optionally
   the Counter-Strike folder (the one holding `cstrike/` and `valve/`), picked or dropped.
-- **Chrome and Edge (137 or newer): a folder on the disk.** **Convert into a folder…** asks for a folder (an empty
+- **Start, then Cancel:** the bar follows each step's share of the time (`WEIGHT` in `convert.html`, measured with
+  `kumite_convert --jobs 1`: the browser's converter is one thread too). Cancel stops the worker: the browser's
+  storage keeps the finished steps (Start goes on from there), a folder is converted again from the beginning.
+  The background, `web/background.webp`, is in Git LFS (`git lfs install` before cloning, or `git lfs pull`).
+- **Chrome and Edge (137 or newer): a folder on the disk.** **Start** asks for a folder (an empty
   one, or one converted into before) and writes the game there as `kumite_convert` does: `characters/`,
   `stages/`, `gamedata/`, `audio/`, `video/`, `pictures/`, `manifest.json` last. Closed or reloaded midway, the
   conversion starts again from the beginning when run again. OpenKumite's browser page opens such a folder (**Open
@@ -139,10 +144,10 @@ OUT) into the site's OPFS (`?clear` removes it).
   into when served from the same site.
 - **Firefox and Safari: the browser's storage.** The page checks the space before it starts (about 1.5 GB for
   Tekken 3, up to about 4.2 GB with both extras). If the page is closed or reloaded, the conversion resumes from the
-  last finished step. **Delete** removes it.
+  last finished step. **Delete it** removes it.
 - **Time:** about 5 minutes for Tekken 3, 10 with both extras (on a recent desktop).
 - The browser's storage is the site's: OpenKumite's browser page reads it only when served from the same site. To
-  play such a conversion, copy `web/convert.html`, `web/convert_worker.js` and `web/pkg/convert_web*` into
+  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/background.webp` and `web/pkg/convert_web*` into
   OpenKumite's `web/` and `web/pkg/` (no name clashes) and serve them together.
 - Needs a current Chrome, Edge, Firefox or Safari (17 or newer); not a private window.
 - **iPhone and iPad:** first add the page to the Home Screen and convert inside that app. Safari may delete a web
