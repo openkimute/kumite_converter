@@ -23,7 +23,7 @@ verified in the code, **[C]** confirmed by data or a prototype, **[I]** inferred
 |---|---|
 | [tekken2/engine.md](tekken2/engine.md) | The disc, models, moves, media and arenas, as far as the Tekken 2 converter and the fighters brought into OpenKumite need them |
 
-The small scripts some notes name (`mem.py`, `fa.py`, `scan.py`, ...) were throwaway research tools, not in the
+The small scripts some notes name (`mem`, `fa`, `scan`, ...) were throwaway research tools, not in the
 repository; what they established is in the notes and in the converters.
 
 New research goes into the note on its subject (or a new one, linked here); a finding that changes OpenKumite's

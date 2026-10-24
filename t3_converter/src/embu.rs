@@ -1,4 +1,4 @@
-//! embu.py: the attract embu's data (overlay record 0, loaded at 0x800B8D58; model archives records 1-3): shared by
+//! embu: the attract embu's data (overlay record 0, loaded at 0x800B8D58; model archives records 1-3): shared by
 //! export_gamedata (attract.json) and export_gltf (the embu-only models). Attract research §2.
 //!
 //! - Three cast variants N = 0..2. Script N: 10-byte entries {s16 frame, cmd, a, b, c} at 0x800B8E3C + 450 N, ended
@@ -109,7 +109,7 @@ mod tests {
     use super::*;
     use serde_json::{Value, json};
 
-    /// T3_BIN=<the disc image>, T3_GAMEDATA=<export_gamedata.py's gamedata/ dir>: the variants' scripts and models
+    /// T3_BIN=<the disc image>, T3_GAMEDATA=<export_gamedata's gamedata/ dir>: the variants' scripts and models
     /// as attract.json has them.
     #[test]
     fn variants_as_python() -> Result<()> {

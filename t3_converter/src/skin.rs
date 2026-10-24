@@ -1,4 +1,4 @@
-//! skin.py: build a weighted mesh: each vertex = sum_i w_i * (M_row_i * p_i). Emulates the engine's seam welding.
+//! skin: build a weighted mesh: each vertex = sum_i w_i * (M_row_i * p_i). Emulates the engine's seam welding.
 
 use crate::t3m;
 use anyhow::{Context, Result};

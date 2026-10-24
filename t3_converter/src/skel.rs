@@ -1,4 +1,4 @@
-//! skel.py: pose (49 channels) -> per-row world matrices. Mirrors EXE 0x8003AD10 / 0x8003BCA8 / 0x8003AFCC.
+//! skel: pose (49 channels) -> per-row world matrices. Mirrors EXE 0x8003AD10 / 0x8003BCA8 / 0x8003AFCC.
 //!
 //! Works on the game's 18 matrix slots:
 //!   0 root, 1 chest, 2 head, 3-6 arm A (clavicle, upper, fore, hand), 7-10 arm B,

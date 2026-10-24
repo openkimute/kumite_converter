@@ -1,4 +1,4 @@
-//! gamedata_tables.py: EXE table decoders for export_gamedata (shared, reactions, rules, roster, stages, music, AI,
+//! gamedata_tables: EXE table decoders for export_gamedata (shared, reactions, rules, roster, stages, music, AI,
 //! camera).
 //!
 //! Sources: docs/reference/tekken3/engine.md §5-13 and docs/reference/tekken3/*.md. Every table carries its RAM address so values can
@@ -572,7 +572,7 @@ pub fn music(exe: &Exe) -> Result<Value> {
     }
     Ok(json!({"bgm_table": "0x80024FD0 (32 ids x 2 columns {xa index | 0x80 = CD-DA track, volume | 0x80 = loop})",
               "column_select": "BGM SELECT option byte 0x80097F05: column 0 = arranged/REMIXED (default, likely), column 1 = arcade; SILENT = none",
-              "ending_bgm_id": 4, "files_from": "export_media.py music/ (NN.flac = XA table index, cdda_track2.flac)",
+              "ending_bgm_id": 4, "files_from": "export_media music/ (NN.flac = XA table index, cdda_track2.flac)",
               "bgm": bgm, "xa_table": {"address": "0x80024D78", "entries": xa}}))
 }
 

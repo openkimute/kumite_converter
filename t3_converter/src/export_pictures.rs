@@ -1,4 +1,4 @@
-//! export_pictures.py: Tekken 3 (USA, SLUS-00402) 2D pictures (portraits, menus, logos, HUD, Theater stills) to PNG.
+//! export_pictures: Tekken 3 (USA, SLUS-00402) 2D pictures (portraits, menus, logos, HUD, Theater stills) to PNG.
 //!
 //! usage: t3_convert export_pictures "Tekken_3_(USA)_(Track 1).bin" OUTDIR
 //!

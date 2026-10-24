@@ -498,7 +498,7 @@ pub fn transplant(
     }
     let n = anims.len();
     g.j.insert("animations".into(), json!(anims));
-    g.j["asset"]["generator"] = json!("t2_extractor/transplant.py");
+    g.j["asset"]["generator"] = json!("t2_extractor/transplant");
     g.write(fs, out_path)?;
     Ok(n)
 }

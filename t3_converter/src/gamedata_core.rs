@@ -1,4 +1,4 @@
-//! gamedata_core.py: shared helpers for export_gamedata: EXE/BNS access, compact JSON writer, input notation.
+//! gamedata_core: shared helpers for export_gamedata: EXE/BNS access, compact JSON writer, input notation.
 //!
 //! All addresses are PS1 RAM addresses; the EXE loads at 0x80010000 (file offset = addr - 0x80010000 + 0x800).
 //! Addresses and read values are i64 (Python ints); a read outside the data is an error (Python's struct.error).
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn notation_as_python() {
-        // values checked against gamedata_core.py
+        // values checked against gamedata_core
         assert_eq!(hx(0xC00E, 4), "0xC00E");
         assert_eq!(hx(-5, 4), "0x-005");
         assert_eq!(hx(0x800954D0, 0), "0x800954D0");
@@ -329,7 +329,7 @@ mod tests {
         assert_eq!(seq_text(&[4, 1, 2, 3, 6 | 0x1100 | 0x200]), "hcf+(1|2)");
     }
 
-    /// T3_GAMEDATA=<export_gamedata.py's gamedata/ dir>: every JSON file there, read back and written again, is
+    /// T3_GAMEDATA=<export_gamedata's gamedata/ dir>: every JSON file there, read back and written again, is
     /// byte-identical.
     #[test]
     fn dumps_as_python_files() {

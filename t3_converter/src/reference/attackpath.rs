@@ -1,4 +1,4 @@
-//! attackpath.py: Tekken 3 (SLUS-00402) attack-trajectory decoder.
+//! attackpath: Tekken 3 (SLUS-00402) attack-trajectory decoder.
 //!
 //! Re-implements what the EXE does each active frame of a move:
 //!   0x80041F6C  gate: record+0x2D <= actor+0x58 <= record+0x2E  -> 0x8006A3BC

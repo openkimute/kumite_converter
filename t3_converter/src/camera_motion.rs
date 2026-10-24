@@ -1,4 +1,4 @@
-//! camera_motion.py: scripted camera motions (moveset camera_keyframes, header +0x24): a port of the decoder
+//! camera_motion: scripted camera motions (moveset camera_keyframes, header +0x24): a port of the decoder
 //! 0x80038CE4.
 //!
 //! A camera selector entry whose value has bit 31 set points at moveset +0x24 + (value & 0x7FFFFFFF): a u16 prefix,
@@ -129,7 +129,7 @@ mod tests {
     use super::*;
     use anyhow::Context;
 
-    /// T3_BIN=<the disc image>, T3_GAMEDATA=<export_gamedata.py's gamedata/ dir>: each character moveset's
+    /// T3_BIN=<the disc image>, T3_GAMEDATA=<export_gamedata's gamedata/ dir>: each character moveset's
     /// camera_motions as the Python wrote them.
     #[test]
     fn motions_as_python() -> Result<()> {

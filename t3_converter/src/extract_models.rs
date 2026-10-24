@@ -1,4 +1,4 @@
-//! extract_models.py: every Tekken 3 (USA, SLUS-00402) 3D character model + texture to OBJ/MTL/PNG.
+//! extract_models: every Tekken 3 (USA, SLUS-00402) 3D character model + texture to OBJ/MTL/PNG.
 //!
 //! usage: t3_convert extract_models "Tekken_3_(USA)_(Track 1).bin" OUTDIR [--preview]
 //!

@@ -11,7 +11,7 @@ installer CD is refused: install or unpack it first), all its levels and the two
 cs_levels from_game /path/to/Half-Life assets
 ```
 
-Each level's `.bsp` is converted in memory as the Half-Life project's `bsp2glb.py` converts it (the same glTF; its
+Each level's `.bsp` is converted in memory as the Half-Life project's `bsp2glb` converts it (the same glTF; its
 textures from the BSP, else from the WADs the map names, looked up in `cstrike/` then `valve/` in any case; a missing
 texture gets a placeholder and a warning). The 17 levels below get stages 40..56 in that order, any others follow
 (20 at most). `cs_levels bsp2glb MAP.bsp OUT.glb [GAME_DIR]` writes one level's glb, to look at.

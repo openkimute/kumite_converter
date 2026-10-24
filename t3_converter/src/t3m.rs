@@ -1,4 +1,4 @@
-//! t3m.py: a character model (3DMK record): the 14-word row table and each row's vertex (D), polygon (B), texture
+//! t3m: a character model (3DMK record): the 14-word row table and each row's vertex (D), polygon (B), texture
 //! (C) and normal (A) blocks.
 
 use crate::disc::py_slice;
@@ -45,7 +45,7 @@ pub struct Polys {
 }
 
 impl Polys {
-    /// (name, each polygon's index word, corners) per list, in the order assemble.py and skin.py walk them.
+    /// (name, each polygon's index word, corners) per list, in the order assemble and skin walk them.
     pub fn lists(&self) -> [(&'static str, Vec<u32>, usize); 4] {
         [
             ("tri", self.tris.iter().map(|e| e[0]).collect(), 3),
@@ -174,7 +174,7 @@ pub fn parse(x: &[u8]) -> Result<(Vec<[u32; 14]>, Vec<Row>)> {
     Ok((rows, out))
 }
 
-/// `python3 t3m.py MODEL`: the row table, one line per row.
+/// `t3_convert t3m MODEL`: the row table, one line per row.
 pub fn main(args: &[String]) -> Result<()> {
     let path = args.first().context("usage: t3m MODEL_RECORD")?;
     let x = std::fs::read(path).with_context(|| format!("cannot read {path}"))?;

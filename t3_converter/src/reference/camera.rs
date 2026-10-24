@@ -1,4 +1,4 @@
-//! camera.py: Tekken 3 (SLUS-00402) versus fight camera -- integer-exact reimplementation prototype.
+//! camera: Tekken 3 (SLUS-00402) versus fight camera -- integer-exact reimplementation prototype.
 //!
 //! Reimplements (from the EXE disassembly, see docs/reference/tekken3/camera.md):
 //!   0x8006465C  sample fighter positions        -> SAMP[2] = {x, y, z, side}

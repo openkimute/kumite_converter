@@ -1,4 +1,4 @@
-//! export_effects.py: hit sparks and effects: bake the game's effect cells in their palettes into one RGBA atlas,
+//! export_effects: hit sparks and effects: bake the game's effect cells in their palettes into one RGBA atlas,
 //! and write the effect tables (docs: effects research; EXE sprite system 0x80076884 / 0x80076E70, effect objects
 //! 0x8006F4F4).
 //!

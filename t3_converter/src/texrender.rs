@@ -1,4 +1,4 @@
-//! texrender.py: a textured OBJ rendered from a few yaw angles side by side (orthographic, z-buffered), for previews.
+//! texrender: a textured OBJ rendered from a few yaw angles side by side (orthographic, z-buffered), for previews.
 
 use anyhow::{Context, Result};
 use image::{RgbImage, RgbaImage};

@@ -1,4 +1,4 @@
-//! The minimal glTF 2.0 binary writer of export_gltf.py (`GLB`): the same JSON, views, padding and bytes.
+//! The minimal glTF 2.0 binary writer of export_gltf (`GLB`): the same JSON, views, padding and bytes.
 
 use crate::pyjson;
 use serde_json::{Map, Value, json};
@@ -19,7 +19,7 @@ impl Default for Glb {
 }
 
 impl Glb {
-    /// `generator`: the asset's generator string (kept as the Python tools write it: it is part of the online
+    /// `generator`: the asset's generator string (it is part of the online
     /// fingerprint).
     pub fn new(generator: &str) -> Glb {
         let mut j = Map::new();

@@ -1,7 +1,7 @@
-//! gamedata_moves.py: moveset (BNS record m+3 / 279..300) decoding for export_gamedata.
+//! gamedata_moves: moveset (BNS record m+3 / 279..300) decoding for export_gamedata.
 //!
 //! Field meanings follow docs/reference/tekken3/engine.md §7 and docs/reference/tekken3/{move-properties,attack-paths,reactions}.md.
-//! The attack-segment decoder is a port of reference/attackpath.py (0x8006A3BC / 0x80069714) that works
+//! The attack-segment decoder is a port of reference/attackpath (0x8006A3BC / 0x80069714) that works
 //! on in-memory buffers instead of reading the disc itself.
 
 use crate::gamedata_core::{Exe, Seq, cmd_info};
@@ -307,7 +307,7 @@ pub fn read_cancel(r: &Exe, a: i64) -> Result<[i64; 9]> {
     Ok([u16_(0)?, u8_(2)?, u8_(3)?, u16_(4)?, u16_(6)?, u8_(8)?, u8_(9)?, u8_(10)?, u8_(11)?])
 }
 
-// ---------------------------------------------------------------- attack paths (port of reference/attackpath.py)
+// ---------------------------------------------------------------- attack paths (port of reference/attackpath)
 /// layout code -> (bytes per frame, bytes before frame 0)
 fn stride(code: i64) -> Option<(i64, i64)> {
     Some(match code {

@@ -1,4 +1,4 @@
-//! atlas.py: a character's texture record drawn into one RGBA atlas (VRAM x * 4 by y), and texture page + CLUT
+//! atlas: a character's texture record drawn into one RGBA atlas (VRAM x * 4 by y), and texture page + CLUT
 //! lookups from a polygon's UV into it.
 
 use crate::disc::{py_slice, u32le};

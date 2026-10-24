@@ -1,4 +1,4 @@
-//! bsp2glb.py's textures: the miptex records (embedded in a BSP or in a WAD3 file) and their pictures.
+//! bsp2glb's textures: the miptex records (embedded in a BSP or in a WAD3 file) and their pictures.
 
 use std::collections::HashMap;
 

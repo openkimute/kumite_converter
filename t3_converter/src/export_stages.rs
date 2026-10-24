@@ -1,4 +1,4 @@
-//! export_stages.py: Tekken 3 (USA, SLUS-00402) stages (arenas) to glTF 2.0 binary (.glb).
+//! export_stages: Tekken 3 (USA, SLUS-00402) stages (arenas) to glTF 2.0 binary (.glb).
 //!
 //! usage: t3_convert export_stages "Tekken_3_(USA)_(Track 1).bin" OUTDIR [stage numbers]
 //!

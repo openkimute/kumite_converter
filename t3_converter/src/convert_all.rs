@@ -1,11 +1,10 @@
-//! convert_all.py: convert everything OpenKumite needs from your own disc image into standard formats, once.
+//! convert_all: convert everything OpenKumite needs from your own disc image into standard formats, once.
 //!
 //! usage: t3_convert "Tekken_3_(USA)_(Track 1).bin" OUTDIR [--only characters,stages,...] [--jobs N]
 //!        t3_convert --fingerprint OUTDIR     (only the manifest's fingerprint, again)
 //!
-//! OUTDIR layout (OpenKumite reads only this): see convert_all.py. `convert` runs the steps in `STEPS`
-//! into a `Vfs`; `main` is the command line. The manifest names the Python scripts, as the Python writes it
-//! (manifests are compared).
+//! OUTDIR layout (OpenKumite reads only this): docs/converter.md. `convert` runs the steps in `STEPS`
+//! into a `Vfs`; `main` is the command line. The manifest names each step's module.
 
 use crate::{
     export_effects, export_gamedata, export_gltf, export_media, export_pictures, export_shadows, export_stages,
@@ -22,19 +21,19 @@ type Step = fn(&Ctx, &dyn DiscFile, Option<&dyn DiscFile>, &str) -> Result<()>;
 
 /// name -> (script, output folder, step), in their order
 pub const STEPS: [(&str, &str, &str, Step); 8] = [
-    ("characters", "export_gltf.py", "characters", |c, d, _, o| export_gltf::run(c, d, o, None, true, true)),
-    ("stages", "export_stages.py", "stages", |c, d, _, o| export_stages::run(c, d, o, None)),
-    ("pictures", "export_pictures.py", "pictures", |c, d, _, o| export_pictures::run(c, d, o)),
-    // export_media.py's sfx/, music/ and index.json go to audio/, its video/ to video/
-    ("media", "export_media.py", "", |c, d, t2, o| {
+    ("characters", "export_gltf", "characters", |c, d, _, o| export_gltf::run(c, d, o, None, true, true)),
+    ("stages", "export_stages", "stages", |c, d, _, o| export_stages::run(c, d, o, None)),
+    ("pictures", "export_pictures", "pictures", |c, d, _, o| export_pictures::run(c, d, o)),
+    // export_media's sfx/, music/ and index.json go to audio/, its video/ to video/
+    ("media", "export_media", "", |c, d, t2, o| {
         let place = |p: &str| join(o, &if p == "video" { p.to_string() } else { format!("audio/{p}") });
         export_media::run(c, d, t2, &["sfx", "music", "video"], &place)
     }),
-    ("gamedata", "export_gamedata.py", "", |c, d, _, o| export_gamedata::run(c, d, o)),
+    ("gamedata", "export_gamedata", "", |c, d, _, o| export_gamedata::run(c, d, o)),
     // after pictures (its sheets, palettes) and gamedata (roster)
-    ("effects", "export_effects.py", "pictures/effects", |c, d, _, o| export_effects::run(c, d, o)),
-    ("theater", "export_theater.py", "", |c, d, _, o| export_theater::run(c, d, o)), // gamedata/theater.json, pictures/theater/
-    ("shadows", "export_shadows.py", "", |c, d, _, o| export_shadows::run(c, d, o)), // gamedata/shadows.json
+    ("effects", "export_effects", "pictures/effects", |c, d, _, o| export_effects::run(c, d, o)),
+    ("theater", "export_theater", "", |c, d, _, o| export_theater::run(c, d, o)), // gamedata/theater.json, pictures/theater/
+    ("shadows", "export_shadows", "", |c, d, _, o| export_shadows::run(c, d, o)), // gamedata/shadows.json
 ];
 
 /// Converts `only` these steps (by name) into `ctx.out`, then writes manifest.json (`now`: when, for the steps'

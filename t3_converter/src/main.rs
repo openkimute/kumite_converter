@@ -1,6 +1,6 @@
-//! `t3_convert SCRIPT ARGS...` runs one step (SCRIPT = the Python script's name without `.py`);
+//! `t3_convert STEP ARGS...` runs one step (STEP: a module's name, export_gltf and the like);
 //! `t3_convert BIN OUTDIR [--only characters,stages,...] [--jobs N]` and `t3_convert --fingerprint OUTDIR`:
-//! convert_all.py.
+//! convert_all.
 
 use anyhow::Result;
 use t3_converter::reference::{attackpath, camera, camera_golden};

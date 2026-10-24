@@ -1,4 +1,4 @@
-//! `t2_convert BIN [OUTDIR] [characters,stages,media]` (convert_all.py), or `t2_convert SCRIPT ARGS...` for one of
+//! `t2_convert BIN [OUTDIR] [characters,stages,media]` (convert_all), or `t2_convert SCRIPT ARGS...` for one of
 //! the scripts: export_characters, export_stages, export_media, transplant.
 
 use t2_converter::*;

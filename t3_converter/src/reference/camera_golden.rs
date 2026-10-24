@@ -1,4 +1,4 @@
-//! camera_golden.py: write golden traces of the reference fight camera (camera.rs) for the Rust port's tests.
+//! camera_golden: write golden traces of the reference fight camera (camera.rs) for the Rust port's tests.
 //!
 //! Usage: t3_convert camera_golden OUT.json (the tests read ASSETS/tests/camera_golden.json)
 //! Each scenario lists, per frame, the two samples [x, y, z, side], frames_since_start, move_cam and the
@@ -95,7 +95,7 @@ pub fn main(args: &[String]) -> Result<()> {
         |_| [0, 0],
     )?);
     let frames: usize = out.iter().map(|s| s["frames"].as_array().map_or(0, |a| a.len())).sum();
-    let doc = json!({"source": "tools/t3_converter/reference/camera.py", "scenarios": out});
+    let doc = json!({"source": "t3_converter/reference/camera", "scenarios": out});
     if let Some(dir) = std::path::Path::new(out_path).parent() {
         std::fs::create_dir_all(dir).with_context(|| format!("cannot make {}", dir.display()))?;
     }

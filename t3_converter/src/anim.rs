@@ -1,4 +1,4 @@
-//! anim.py: port of Tekken 3 (SLUS-00402) animation keyframe decoder (EXE 0x80038B4C / 0x800387C8).
+//! anim: port of Tekken 3 (SLUS-00402) animation keyframe decoder (EXE 0x80038B4C / 0x800387C8).
 //!
 //! The MIPS code's arithmetic is kept: values are i64 (Python ints) wrapped to 32 bits where the original's
 //! registers wrap (`i32`).
@@ -194,7 +194,7 @@ mod tests {
     use super::*;
 
     /// T3_BIN=<the disc image>: every motion of records 74, 186 and 279 at every frame (and one past each end)
-    /// checksummed as anim.py gives it.
+    /// checksummed as anim gives it.
     #[test]
     fn decode_as_python() -> Result<()> {
         let Ok(bin) = std::env::var("T3_BIN") else {

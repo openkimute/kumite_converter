@@ -1,4 +1,4 @@
-//! convert_all.py's `fingerprint`, `canonical_json`, `canonical_glb` and `write_manifest` (`convert_all.py
+//! convert_all's `fingerprint`, `canonical_json`, `canonical_glb` and `write_manifest` (`convert_all
 //! --fingerprint ASSETS`), which the scripts run after changing the assets; a copy: no import of Tekken 3's converter.
 
 use crate::pyjson;
@@ -113,7 +113,7 @@ pub fn canonical_glb(data: &[u8]) -> Result<Vec<u8>> {
 /// manifest.json's `format` (t3_converter convert_all's).
 const FORMAT: i64 = 3;
 
-/// `convert_all.py --fingerprint OUT`: the manifest's fingerprint, again (returned).
+/// `convert_all --fingerprint OUT`: the manifest's fingerprint, again (returned).
 pub fn write_manifest(out: &dyn Vfs) -> Result<String> {
     let mut manifest: Value = serde_json::from_slice(&out.read("manifest.json")?).context("manifest.json: not JSON")?;
     let fp = fingerprint(out)?;

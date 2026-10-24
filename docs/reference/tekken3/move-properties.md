@@ -17,15 +17,15 @@ Helpers are in `(research)/gap2/`:
 
 | Script | Purpose |
 |---|---|
-| `ms.py` | Pack loader: alias resolution, cancel entries, command text. Common pack 279 has no alias table, so its dests resolve in Paul's context. |
-| `props.py` | Timed-property op totals, plus a per-pack matrix |
-| `plist.py pack O<i>\|C<i>\|alias…` | Dumps one record's property list and SFX list |
-| `cstats.py` | Statistics for the cancel-entry fields |
-| `bycond.py pack <cond>\|r=<req>\|t=<tr>` | Lists cancel entries by `cond`, `req` or `tr` byte |
-| `sfx.py` | Voice/SFX list statistics |
-| `jt.py addr n` | Groups a jump table by target |
-| `xref.py [-s] off…` | Loads/stores of actor offsets |
-| `bituse.py off` | `andi` masks applied to a field |
+| `ms` | Pack loader: alias resolution, cancel entries, command text. Common pack 279 has no alias table, so its dests resolve in Paul's context. |
+| `props` | Timed-property op totals, plus a per-pack matrix |
+| `plist pack O<i>\|C<i>\|alias…` | Dumps one record's property list and SFX list |
+| `cstats` | Statistics for the cancel-entry fields |
+| `bycond pack <cond>\|r=<req>\|t=<tr>` | Lists cancel entries by `cond`, `req` or `tr` byte |
+| `sfx` | Voice/SFX list statistics |
+| `jt addr n` | Groups a jump table by target |
+| `xref [-s] off…` | Loads/stores of actor offsets |
+| `bituse off` | `andi` masks applied to a field |
 | `shared_lists.txt` | Full dump of the 672 shared EXE cancel entries (`0x80017C78`) |
 | `cond_e0bc.asm`, `cond_e8d0.asm` | The two condition evaluators |
 
@@ -110,7 +110,7 @@ Counts:
 Example: Paul throw O240 has open at frame 4, fist at frame 14 (the grab), and back to default at frame 20. Jumps O22
 have fist at frame 9 and default at frame 38.
 
-Total: **4126 entries**. The per-pack matrix is printed by `props.py`. The only op 0x09 user is pack 294 (Ogre). Ops
+Total: **4126 entries**. The per-pack matrix is printed by `props`. The only op 0x09 user is pack 294 (Ogre). Ops
 0x11 and 0x13 occur once each.
 
 ### 1.3 How the damage events are applied (`0x800449B4`, called from the per-actor hit pass `0x80044400`) [V]
