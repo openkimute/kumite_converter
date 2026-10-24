@@ -121,7 +121,7 @@ dependencies = [
 
 [[package]]
 name = "conv_io"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "convert"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -144,7 +144,7 @@ dependencies = [
 
 [[package]]
 name = "convert_web"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "conv_io",
@@ -211,7 +211,7 @@ dependencies = [
 
 [[package]]
 name = "cs_levels"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "conv_io",
@@ -519,7 +519,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "np_portable"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libm",
 ]
@@ -569,7 +569,7 @@ dependencies = [
 
 [[package]]
 name = "psx_media"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "flacenc",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "serve"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cargo-husky",
@@ -797,7 +797,7 @@ dependencies = [
 
 [[package]]
 name = "t2_converter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "conv_io",
@@ -814,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "t3_converter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
