@@ -154,8 +154,11 @@ OUT) into the site's OPFS (`?clear` removes it).
 - `sh check.sh commit` (the pre-commit hook): `cargo fmt` (120 columns, `rustfmt.toml`), clippy with warnings as
   errors (`unwrap` and `expect` denied, tests too), the tests; `sh check.sh push` (the pre-push hook, and the
   default) adds `cargo deny` (`deny.toml`).
-- **Releases:** set `version` in `Cargo.toml`'s `[workspace.package]`, commit, then push a tag of that version:
-  `git tag v1.2.3 && git push origin v1.2.3` (`v1.2.3-rc.1`, with that version, makes a pre-release).
+- **main** takes changes only through pull requests (the repository's rulesets): `.github/workflows/ci.yml` runs
+  `sh check.sh push` on Linux and the tests on macOS and Windows, and a pull request merges when they pass and its
+  conversations are resolved, by squash or rebase (no merge commits). Only admins create, move or delete `v*` tags.
+- **Releases:** set `version` in `Cargo.toml`'s `[workspace.package]` in a pull request, merge it, then push a tag of
+  that version on the merged commit: `git pull && git tag v1.2.3 && git push origin v1.2.3` (`v1.2.3-rc.1`, with that version, makes a pre-release).
   `.github/workflows/release.yml` builds each platform on its own runner and publishes the release: archives with
   `kumite_convert`, the README, the licenses and the notices, for Linux (static musl, with mimalloc: musl's allocator
   serializes the threads, the conversion ran 3x slower), Windows (the C runtime linked in) and macOS (universal), on

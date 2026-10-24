@@ -59,7 +59,7 @@ In a browser: `sh convert_web/build.sh`, then `target/release/serve 8770 web` an
 
 Documentation, and how to check and test changes here: [docs/converter.md](docs/converter.md); the reference notes (the original games and their disc formats):
 [docs/reference/](docs/reference/README.md); the universal converter plan: [docs/UNIVERSAL.md](docs/UNIVERSAL.md).
-`sh check.sh` runs the checks (formatting, clippy, tests, cargo deny; the git hooks run it). A tag `vX.Y.Z` (the
+`sh check.sh` runs the checks (formatting, clippy, tests, cargo deny; the git hooks and CI run it; main takes pull requests only). A tag `vX.Y.Z` (the
 version in `Cargo.toml`) publishes a release: one standalone `kumite_convert` for Linux (static), Windows and macOS,
 each on amd64 and arm64, a WASI `.wasm`, and the browser converter (docs/converter.md, Releases).
 
