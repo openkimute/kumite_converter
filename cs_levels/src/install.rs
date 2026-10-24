@@ -1,4 +1,4 @@
-//! install.py: install a Counter-Strike level (an already converted glb: Half-Life units x 0.0254 m, Y up) as a
+//! install: install a Counter-Strike level (an already converted glb: Half-Life units x 0.0254 m, Y up) as a
 //! port arena for the CS LEVELS menu.
 //!
 //! `cs_levels install LEVEL.glb ASSETS [STAGE_ID]`

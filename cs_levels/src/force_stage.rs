@@ -1,4 +1,4 @@
-//! force_stage.py: make an installed Counter-Strike level (install.rs) an extra Tekken Force stage.
+//! force_stage: make an installed Counter-Strike level (install.rs) an extra Tekken Force stage.
 //!
 //! `cs_levels force_stage ASSETS STAGE_ID BASE_STAGE [NAME]`
 //!

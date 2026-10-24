@@ -1,4 +1,4 @@
-//! bsp2glb.py's `load_bsp` and `build`: a GoldSrc (Half-Life, version 30) map's entities, embedded textures and
+//! bsp2glb's `load_bsp` and `build`: a GoldSrc (Half-Life, version 30) map's entities, embedded textures and
 //! faces, the faces gathered into polygons per (brush model, texture). No lighting: the levels are unlit.
 
 use crate::wad::{Miptex, cstr, i32at, parse_miptex, u32at};

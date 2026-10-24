@@ -1,4 +1,4 @@
-//! export_gltf.py: convert Tekken 3 (USA, SLUS-00402) characters to glTF 2.0 binary (.glb).
+//! export_gltf: convert Tekken 3 (USA, SLUS-00402) characters to glTF 2.0 binary (.glb).
 //!
 //! usage: t3_convert export_gltf "Tekken_3_(USA)_(Track 1).bin" OUTDIR [ids] [--with-common] [--with-embu]
 //!
@@ -549,7 +549,7 @@ pub fn convert(
     // ---- animations: solve every frame (angles + IK) and bake joint rotations -----------
     // Banks: the character's own motions (`motion_NNN`, record m+3) and, if given, the shared common set
     // (`common_NNN`, record 279) that every character's moves and hit reactions also use. NNN is the index in
-    // anim.find_motions order; gameplay JSON (export_gamedata.py) refers to animations by these names.
+    // anim.find_motions order; gameplay JSON (export_gamedata) refers to animations by these names.
     let mut banks: Vec<(&str, &[u8], Vec<usize>)> = Vec::new();
     if own {
         banks.push(("motion", anm, motions));

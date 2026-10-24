@@ -1,4 +1,4 @@
-//! bsp2glb.py's `export` (the glb; not its OBJ): the same glTF, in the same order. Images first (PNG, the pixels as
+//! bsp2glb's `export` (the glb; not its OBJ): the same glTF, in the same order. Images first (PNG, the pixels as
 //! Pillow's; the compressed bytes differ), one mesh per brush model with faces (worldspawn first), one primitive per
 //! texture (by name), unlit materials (`{` textures alpha-masked), one sampler, the `info_player*` spawns as nodes,
 //! the scene named after the map. Half-Life (x, y, z) inches become glTF (x, z, -y) x 0.0254 m.

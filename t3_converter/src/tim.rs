@@ -1,4 +1,4 @@
-//! tim.py: a sequential chain of PS1 TIM images.
+//! tim: a sequential chain of PS1 TIM images.
 
 use crate::disc::u32le;
 

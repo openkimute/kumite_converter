@@ -1,4 +1,4 @@
-//! export_theater.py: Tekken 3's Theater mode and arcade ending data (record 301, loaded at 0x800B8D58) for the port.
+//! export_theater: Tekken 3's Theater mode and arcade ending data (record 301, loaded at 0x800B8D58) for the port.
 //!
 //! usage: t3_convert export_theater "Tekken_3_(USA)_(Track 1).bin" OUTDIR
 //!

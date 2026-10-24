@@ -12,10 +12,10 @@ No third-party code was used.
 Tags: **[V]** traced in code or checked against data. **[G]** guess or interpretation.
 
 Helpers are in `(research)/gap3/`:
-- `exe.py`: EXE reader.
-- `rx.py <rec> <reaction-id>…`: dumps a reaction entry, resolving each slot through the victim's alias table.
-- `clx.py <rec> <alias>…`: a move record plus its cancel list (shared sub-lists expanded).
-- `fa.py <rec> [alias…]`: frame-advantage calculator.
+- `exe`: EXE reader.
+- `rx <rec> <reaction-id>…`: dumps a reaction entry, resolving each slot through the victim's alias table.
+- `clx <rec> <alias>…`: a move record plus its cancel list (shared sub-lists expanded).
+- `fa <rec> [alias…]`: frame-advantage calculator.
 
 ---
 

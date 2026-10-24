@@ -1,4 +1,4 @@
-//! qa_glb.py: QA for exported .glb files: skins each model with plain glTF math at frames sampled from ~12
+//! qa_glb: QA for exported .glb files: skins each model with plain glTF math at frames sampled from ~12
 //! animations and reports triangles that stretch more than 3x their bind-pose size.
 //!
 //! usage: t3_convert qa_glb DIR [071,227,...]

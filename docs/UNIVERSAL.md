@@ -53,7 +53,7 @@ Each extra is a separate tool that edits a Tekken 3 `assets/` folder in place, a
 **`cs_levels force_stage assets ID BASE`** builds a Tekken Force script from the Tekken 3 stage `BASE` and appends it
 to `force.json`'s `extra_stages`, so their order is the run order. Its boss pool is fixed: `[13, 14, 20, 23, 33]`.
 
-The level `.glb` files come from an outside Python script (`levels/tools/bsp2glb.py`, in the Counter-Strike
+The level `.glb` files come from an outside Python script (`levels/tools/bsp2glb`, in the Counter-Strike
 project).
 
 ### Problems with that
@@ -266,7 +266,7 @@ What ffmpeg does today, and what replaces it:
 
 ## 5. Counter-Strike from the game folder
 
-`bsp2glb.py` (484 lines, numpy and Pillow) is ported into `cs_levels` as three modules, about 650 lines.
+`bsp2glb` (484 lines, numpy and Pillow) is ported into `cs_levels` as three modules, about 650 lines.
 
 **`bsp`** reads BSP version 30:
 - the entities, planes, textures, vertices, texinfo, faces, edges, surfedges and models lumps (no lighting: the
@@ -317,8 +317,8 @@ give other arenas and another fingerprint.
 **The check for OpenKumite:** each new stage glb's `canonical_glb` equals today's `assets/stages/stage_40..56.glb`.
 Before the maths change, the fingerprint is compared on a copy of `assets/`.
 
-**One string to settle.** `force.json`'s `source` reads `"tools/cs_levels/force_stage.py: …"` in today's Rust and
-`"cs_levels/force_stage.py: …"` in the current `assets/`. It changed when the folders were reorganised. It is
+**One string to settle.** `force.json`'s `source` reads `"tools/cs_levels/force_stage: …"` in today's Rust and
+`"cs_levels/force_stage: …"` in the current `assets/`. It changed when the folders were reorganised. It is
 fingerprinted, so a new value is set once, with the §3 change.
 
 ## 6. The browser (later phase)

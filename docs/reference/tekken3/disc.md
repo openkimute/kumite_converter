@@ -17,7 +17,7 @@
 | `SLUS_004.02` (EXE) | — | `fbda8b68e5799dbef4af39a161783bc670c15b0aa0e87dce65e210717da19b8c` |
 
 Track 1 and the EXE hashes match the known-good reference values used by
-[Tekken3Recompiled](https://github.com/FishB0nes98/Tekken3Recompiled) (`game.toml`, `tools/xas_mod.py`).
+[Tekken3Recompiled](https://github.com/FishB0nes98/Tekken3Recompiled) (`game.toml`, `tools/xas_mod`).
 
 ### ⚠️ Known issue: cue sheet filename mismatch
 

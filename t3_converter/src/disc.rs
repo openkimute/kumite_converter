@@ -1,5 +1,5 @@
-//! The disc image: ISO 9660 on raw 2352-byte sectors (extract_models.py's `iso_files` / `read_file`), and Tekken 3's
-//! EXE and BNS archive with its record table (disc.py).
+//! The disc image: ISO 9660 on raw 2352-byte sectors (extract_models's `iso_files` / `read_file`), and Tekken 3's
+//! EXE and BNS archive with its record table (disc).
 
 use anyhow::{Context, Result, bail};
 use conv_io::{DiscFile, ReadSeek};
@@ -142,7 +142,7 @@ pub fn py_slice(d: &[u8], a: usize, b: usize) -> &[u8] {
     if a >= b { &[] } else { &d[a..b] }
 }
 
-/// disc.py's BIN: the T3_BIN environment variable, or "Tekken_3_(USA)_(Track 1).bin" at the repository's root.
+/// disc's BIN: the T3_BIN environment variable, or "Tekken_3_(USA)_(Track 1).bin" at the repository's root.
 pub fn bin() -> std::path::PathBuf {
     match std::env::var("T3_BIN") {
         Ok(p) if !p.is_empty() => p.into(),

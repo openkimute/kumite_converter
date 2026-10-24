@@ -1,4 +1,4 @@
-//! The Counter-Strike game folder (Half-Life with cstrike/, read only): its levels converted in memory (bsp2glb.py's
+//! The Counter-Strike game folder (Half-Life with cstrike/, read only): its levels converted in memory (bsp2glb's
 //! work) and installed as the CS LEVELS arenas 40.. and two extra Tekken Force stages.
 //!
 //! `cs_levels from_game GAME_DIR ASSETS`
@@ -160,7 +160,7 @@ pub fn main(args: &[String]) -> Result<()> {
 }
 
 /// `cs_levels bsp2glb MAP.bsp OUT.glb [GAME_DIR]`: GAME_DIR by default the folder above the map's game folder
-/// (MAP.bsp in GAME/maps/, as bsp2glb.py looks).
+/// (MAP.bsp in GAME/maps/, as bsp2glb looks).
 pub fn bsp2glb_main(args: &[String]) -> Result<()> {
     let [map, out, ..] = args else { bail!("usage: cs_levels bsp2glb MAP.bsp OUT.glb [GAME_DIR]") };
     let (root, cs) = match args.get(2) {

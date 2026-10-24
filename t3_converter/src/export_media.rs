@@ -1,4 +1,4 @@
-//! export_media.py: Tekken 3 (USA, SLUS-00402) sound effects, music and movies to browser-friendly files.
+//! export_media: Tekken 3 (USA, SLUS-00402) sound effects, music and movies to browser-friendly files.
 //!
 //! usage: t3_convert export_media "Tekken_3_(USA)_(Track 1).bin" OUTDIR [sfx,music,video]
 //!

@@ -12,8 +12,8 @@ Confidence tags: **[V]** read in the disassembly or confirmed by decoding data; 
 
 Helper scripts are in `(research)/gap1/`:
 - `attackpath`: the decoder (library + CLI).
-- `scan.py`: container/size checks.
-- `verify*.py`, `local.py`, `fit.py`, `pathdist.py`, `report.py`: checks against the pose solver.
+- `scan`: container/size checks.
+- `verify*`, `local`, `fit`, `pathdist`, `report`: checks against the pose solver.
 - `*_report.txt`: per-frame residual dumps.
 - `fn_69714_6a3bc.asm`: the disassembly excerpt.
 
@@ -91,7 +91,7 @@ Built-in descriptors (`0x80017BDC`, entries overlap at 4-byte spacing):
   - Byte 2 is checked `≠ 0` at `0x80040178`.
   - No other reads of bytes 1 and 3 were found.
 - **Bone meaning** [V by data]. Each decoded point was matched to the nearest joint, across Paul, Law, King
-  and Eddy (`second.py`):
+  and Eddy (`second`):
   - code 0 `06 04`: points are slot 4 then slot 6;
   - code 6 `0e 00 0e 0d`: points are swept 14, then 13 → 14;
   - code 7 `11 00 10 11`: segment 1 = 0x11 → 0x10;
@@ -103,7 +103,7 @@ Built-in descriptors (`0x80017BDC`, entries overlap at 4-byte spacing):
   - Paul's jab (1) = slot 10 (left wrist) and 2 = slot 6.
 - **Size** = `6 + pre + per·nframes`, with `nframes = record+0x2E − record+0x2D + 1`. If alt ≠ 0, the alt set
   follows and alt = the primary size, e.g. fmt 0x00A1 = code 1, alt 10 for one frame.
-  - Checked over every descriptor of 20 movesets (`scan.py`). The only mismatches are one tail/padding
+  - Checked over every descriptor of 20 movesets (`scan`). The only mismatches are one tail/padding
     case per moveset (the last descriptor before 4-byte alignment, or one unreferenced gap).
   - Alt sets are present in King (149/149), Anna (153/153), Law (62/170) and Paul (5/146); Mokujin, Dr. B
     and Force have none.
@@ -236,7 +236,7 @@ Method:
 
 The frame offset was selected statistically. Offset −1 gives a local-frame median offset of < 10 units per
 slot. Offset 0 gives 170–370. A fractional-frame search puts 70 % of the points at exactly −1.0
-(`stats.py`, `local.py`).
+(`stats`, `local`).
 
 Paul (record 74, model 71; `paul_report.txt`). Coordinates are game space; |d| is in units (≈ mm):
 
@@ -253,7 +253,7 @@ reproduced; `t3_convert attackpath` prints them from your disc):
 | f+1+2 (rec 116, code 6, 10 + 9→10) | 20–21 | 0, 1 | 39–106 |
 | (rec 238, code 3) | 34 | 0, 1 | 8–84 |
 
-Whole-character statistics over every own-motion descriptor (`pathdist.py`):
+Whole-character statistics over every own-motion descriptor (`pathdist`):
 
 | Character (record / model / mode) | Points | Fixed-frame \|d\| median / p90 | Distance to the bone's animated path, median / p90 |
 |---|---|---|---|

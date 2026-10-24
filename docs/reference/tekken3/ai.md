@@ -15,11 +15,11 @@ Helpers (all in `(research)/gap5/`, not in the repository; no decompiler output 
 - `ghidra/` — headless Ghidra project of the EXE (`exe.bin`, base 0x80010000) and EXE+record 5 (`exe_ovl5.bin`),
   scripts `Dec.java` (decompile list of functions) and `JT.java` (jump-table overrides).
   Decompiles: `ghidra/main2.c` (0x80059890 with all 6 jump tables recovered), `ghidra/ai2.c` (all helpers),
-  `ghidra/cb2.c` (per-character handlers), `ghidra/ovl5.c` (opponent selection). `post.py` renames
+  `ghidra/cb2.c` (per-character handlers), `ghidra/ovl5.c` (opponent selection). `post` renames
   state-block accesses (`ST.fXXX` = state+XXX, `ST.P_XX` = profile+XX; `SELF`/`OPP` actors).
-- `mem.py` (read EXE/overlay by RAM address), `profiles.py` → `profiles.md` (all 30 profiles, labelled),
-  `seqdump.py` (canned AI input sequences, per-moveset AI table), `aiflags.py <rec>` (AI flag bits of the
-  moves in a moveset's standing list), `condscan.py <rec> <cond…>` (find cancel entries by `cond`).
+- `mem` (read EXE/overlay by RAM address), `profiles` → `profiles.md` (all 30 profiles, labelled),
+  `seqdump` (canned AI input sequences, per-moveset AI table), `aiflags <rec>` (AI flag bits of the
+  moves in a moveset's standing list), `condscan <rec> <cond…>` (find cancel entries by `cond`).
 
 ---
 
@@ -134,7 +134,7 @@ also produced as pad bits (guard = hold back / down-back, or simply neutral).
 
 ## 4. Data the AI reads from the movesets
 
-### 4.1 AI bits in move records [V by code; names G, confirmed on Paul's list with `aiflags.py 74`]
+### 4.1 AI bits in move records [V by code; names G, confirmed on Paul's list with `aiflags 74`]
 | Field | Bit | Use by AI |
 |---|---|---|
 | rec+0x08 (attack word) | 0x40000 / 0x80000 / 0x100000 | **range class** close / mid / long. None set ⇒ treated as close+mid (0xC0000) |
@@ -469,7 +469,7 @@ Only when no attack was chosen and movement cooldowns (+0x40, +0x48) expired. `u
 
 ## 9. Per-moveset AI table `0x80022D14` (22 × 16 B) [V]
 `{s16 canParry, u16 pad, ptr highReversalSeq, ptr lowParrySeq, ptr comboList}`; sequences are u16 words
-(`dir | btn<<8`) played one per frame. Dump: `seqdump.py`.
+(`dir | btn<<8`) played one per frame. Dump: `seqdump`.
 
 Some movesets can parry, some have a reversal or low-parry input sequence (e.g. `d, d+1+3`), and a few have a
 combo list of motion preludes (quarter circle, crouch dash). The table is in `assets/gamedata/ai.json`.

@@ -1,4 +1,4 @@
-//! export_shadows.py: export the fighters' shadow meshes to gamedata/shadows.json.
+//! export_shadows: export the fighters' shadow meshes to gamedata/shadows.json.
 //!
 //! usage: t3_convert export_shadows "Tekken_3_(USA)_(Track 1).bin" OUTDIR
 //!

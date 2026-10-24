@@ -1,4 +1,4 @@
-//! assemble.py: a model's vertices in one rigid pose (each bone's D block placed by its row's offset, then the
+//! assemble: a model's vertices in one rigid pose (each bone's D block placed by its row's offset, then the
 //! engine's seam welding) and its textured faces.
 //!
 //! Numbers are `Num`: Python keeps a value an int until a float touches it, and an int zero negates to 0, not
