@@ -139,7 +139,8 @@ OUT) into the site's OPFS (`?clear` removes it).
 - **Start, then Cancel:** the bar follows each step's share of the time (`WEIGHT` in `convert.html`, measured with
   `kumite_convert --jobs 1`: the browser's converter is one thread too). Cancel stops the worker: the browser's
   storage keeps the finished steps (Start goes on from there), a folder is converted again from the beginning.
-  The background, `web/background.webp`, is in Git LFS (`git lfs install` before cloning, or `git lfs pull`).
+  The background and the icons (`web/*.webp`, `web/*.png`, from the same artwork) are in Git LFS (`git lfs install`
+  before cloning, or `git lfs pull`).
 - **Chrome and Edge (137 or newer): a folder on the disk.** **Start** asks for a folder (an empty
   one, or one converted into before) and writes the game there as `kumite_convert` does: `characters/`,
   `stages/`, `gamedata/`, `audio/`, `video/`, `pictures/`, `manifest.json` last. Closed or reloaded midway, the
@@ -153,7 +154,7 @@ OUT) into the site's OPFS (`?clear` removes it).
   10 or newer unpack it), for OpenKumite's per-user folder or any other. **Delete it** removes it.
 - **Time:** about 5 minutes for Tekken 3, 10 with both extras (on a recent desktop).
 - The browser's storage is the site's: OpenKumite's browser page reads it only when served from the same site. To
-  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/i18n.js`, `web/tar.js`, `web/background.webp` and `web/pkg/convert_web*` into
+  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/i18n.js`, `web/tar.js`, `web/background.webp`, `web/favicon.png`, `web/apple-touch-icon.png` and `web/pkg/convert_web*` into
   OpenKumite's `web/` and `web/pkg/` (no name clashes) and serve them together.
 - Needs a current Chrome, Edge, Firefox or Safari (17 or newer); not a private window.
 - **iPhone and iPad:** first add the page to the Home Screen and convert inside that app. Safari may delete a web

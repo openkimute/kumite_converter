@@ -33,5 +33,5 @@ lipo -create -output dist/kumite_convert-macos target/aarch64-apple-darwin/dist/
     target/x86_64-apple-darwin/dist/kumite_convert
 build wasm32-wasip1 && cp target/wasm32-wasip1/dist/kumite_convert.wasm dist/kumite_convert-wasi.wasm
 sh convert_web/build.sh
-cp web/convert.html web/convert_worker.js web/i18n.js web/tar.js web/background.webp dist/web/ && cp web/pkg/convert_web* dist/web/pkg/
+cp web/convert.html web/convert_worker.js web/i18n.js web/tar.js web/background.webp web/favicon.png web/apple-touch-icon.png dist/web/ && cp web/pkg/convert_web* dist/web/pkg/
 ls -l dist dist/web/pkg
