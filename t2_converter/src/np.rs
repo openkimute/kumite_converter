@@ -21,7 +21,7 @@ pub fn mm3(a: &M3, b: &M3) -> M3 {
     let mut r = [[0.0; 3]; 3];
     for i in 0..3 {
         for j in 0..3 {
-            r[i][j] = (0..3).fold(0.0, |s, k| a[i][k].mul_add(b[k][j], s));
+            r[i][j] = (0..3).fold(0.0, |s, k| np_portable::fma(a[i][k], b[k][j], s));
         }
     }
     r
@@ -40,7 +40,8 @@ pub fn mm4(a: &M4, b: &M4) -> M4 {
     let mut r = [[0.0; 4]; 4];
     for i in 0..4 {
         for j in 0..4 {
-            r[i][j] = a[i][2].mul_add(b[2][j], a[i][0] * b[0][j]) + a[i][3].mul_add(b[3][j], a[i][1] * b[1][j]);
+            r[i][j] = np_portable::fma(a[i][2], b[2][j], a[i][0] * b[0][j])
+                + np_portable::fma(a[i][3], b[3][j], a[i][1] * b[1][j]);
         }
     }
     r

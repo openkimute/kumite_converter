@@ -154,6 +154,16 @@ OUT) into the site's OPFS (`?clear` removes it).
 - `sh check.sh commit` (the pre-commit hook): `cargo fmt` (120 columns, `rustfmt.toml`), clippy with warnings as
   errors (`unwrap` and `expect` denied, tests too), the tests; `sh check.sh push` (the pre-push hook, and the
   default) adds `cargo deny` (`deny.toml`).
+- **Releases:** set `version` in `Cargo.toml`'s `[workspace.package]`, commit, then push a tag of that version:
+  `git tag v1.2.3 && git push origin v1.2.3` (`v1.2.3-rc.1`, with that version, makes a pre-release).
+  `.github/workflows/release.yml` builds each platform on its own runner and publishes the release: archives with
+  `kumite_convert`, the README, the licenses and the notices, for Linux (static musl, with mimalloc: musl's allocator
+  serializes the threads, the conversion ran 3x slower), Windows (the C runtime linked in) and macOS (universal), on
+  amd64 and arm64, plus WASI, the browser converter and `SHA256SUMS`. Profiles: `dist` (LTO, stripped), `web` (the
+  browser's build). Every one of them gives the same fingerprint (checked on macOS arm64 and x86_64, Linux arm64
+  and amd64, Windows amd64, Node 24's WASI; Node 22's WASI crashes on Linux arm64).
+- `sh dist.sh` (on macOS) makes the same files into `dist/` locally, for testing; its Windows ones are cross-built
+  through cargo-xwin and convert 2.7x slower than the release's (Microsoft's libraries cargo-xwin downloads).
 - The tests that compare with the disc skip silently unless pointed at it:
   ```sh
   T3_BIN="$PWD/Tekken_3_(USA)_(Track 1).bin" T3_GAMEDATA=<a fresh conversion>/gamedata cargo test --release
@@ -162,9 +172,11 @@ OUT) into the site's OPFS (`?clear` removes it).
 - A change to what a tool writes changes the online fingerprint: every player converts again. Check a change
   against the previous build's conversion (`cmp`, PNGs by pixels; the fingerprint).
 - Floats: every platform (macOS, Linux, Windows, wasm) must give the same bits, so the fingerprint: only + - * /,
-  `sqrt` and `mul_add` in fixed orders (`np`, `np_portable`), and `sin`, `cos`, `acos`, `atan2`, `pow` through the
-  `libm` crate, never `f64::sin` and the like (the platform's libm). `cs_levels/src/fingerprint.rs` is a copy of
-  `convert_all`'s fingerprint (no shared crate): change both.
+  `sqrt` in fixed orders (`np`, `np_portable`), `np_portable::fma` (the CPU's FMA, else `libm::fma`), and `sin`,
+  `cos`, `acos`, `atan2`, `pow` through the `libm` crate, never `f64::mul_add`, `f64::sin` and the like (the
+  platform's libm: Windows x64's static C runtime gets `fma` wrong on a quarter of inputs, and `mul_add` calls it
+  where the CPU target has no FMA). `cs_levels/src/fingerprint.rs` is a copy of `convert_all`'s fingerprint (no
+  shared crate): change both.
 
 ## Viewers
 

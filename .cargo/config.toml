@@ -1,0 +1,4 @@
+# Standalone Windows binaries (dist.sh): the C runtime linked in, so no VC++ redistributable is needed. (Linux's are
+# static through musl, built with cargo zigbuild: zig's linker and C compiler, for mimalloc.)
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

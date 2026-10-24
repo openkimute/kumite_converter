@@ -437,7 +437,7 @@ pub fn hypot(x: f64, y: f64) -> f64 {
     let (mut csum, mut frac1, mut frac2) = (1.0f64, 0.0f64, 0.0f64);
     let dl_mul = |a: f64, b: f64| {
         let z = a * b;
-        (z, a.mul_add(b, -z))
+        (z, np_portable::fma(a, b, -z))
     };
     let dl_fast_sum = |a: f64, b: f64| {
         let x = a + b;

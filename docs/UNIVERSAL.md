@@ -202,7 +202,8 @@ Measured: the SVD and the 4×4 inverse differ from Accelerate on every input, an
 | What | How |
 |---|---|
 | `sin`, `cos`, `acos`, `atan2`, `powf` | the `libm` crate (musl's code, the same Rust's std uses on wasm) |
-| `sqrt`, `mul_add` | already correctly rounded everywhere; unchanged |
+| `sqrt` | already correctly rounded everywhere; unchanged |
+| `mul_add` | `libm::fma` (Windows x64's static C runtime rounds its `fma` twice) |
 | matrix and vector products | fixed loop orders, keeping those that already match today's results where they do |
 | 3×3 SVD | Jacobi, using only + − × ÷ and `sqrt` (nalgebra's goes through the platform's `hypot`) |
 | 4×4 inverse | the LU inverse Tekken 2 already has, shared |

@@ -1,0 +1,189 @@
+# A release for a version tag: vX.Y.Z (a release) or vX.Y.Z-suffix (a pre-release), equal to Cargo.toml's
+# workspace version. Each platform's kumite_convert is built on its own kind of runner (cross-built Windows binaries
+# ran 2.7x slower: docs/converter.md), packed with the licenses and notices, and published with SHA256SUMS.
+name: release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+", "v[0-9]+.[0-9]+.[0-9]+-*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag is Cargo.toml's version
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::$TAG is not vX.Y.Z[-suffix]"; exit 1; }
+          v=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          [ "v$v" = "$TAG" ] || { echo "::error::tag $TAG, but Cargo.toml's version is $v"; exit 1; }
+
+  linux:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, arch: x86_64, name: linux-amd64 }
+          - { runner: ubuntu-24.04-arm, arch: aarch64, name: linux-arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch }}-unknown-linux-musl
+      # static musl with mimalloc (a C library): zig is its C compiler and the linker
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+      - run: cargo zigbuild --profile dist -p convert --target ${{ matrix.arch }}-unknown-linux-musl
+      - name: Static, and it runs
+        run: |
+          bin=target/${{ matrix.arch }}-unknown-linux-musl/dist/kumite_convert
+          file "$bin" | grep -q 'statically linked' || { file "$bin"; echo "::error::not static"; exit 1; }
+          "$bin" --version
+      - name: Pack
+        run: |
+          d=kumite_convert-$TAG-${{ matrix.name }}
+          mkdir "$d" && cp "target/${{ matrix.arch }}-unknown-linux-musl/dist/kumite_convert" README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
+          tar -czf "$d.tar.gz" "$d"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}
+          path: kumite_convert-*.tar.gz
+
+  windows:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - { runner: windows-latest, target: x86_64-pc-windows-msvc, name: windows-amd64 }
+          - { runner: windows-11-arm, target: aarch64-pc-windows-msvc, name: windows-arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      # the C runtime linked in (.cargo/config.toml)
+      - run: cargo build --profile dist -p convert --target ${{ matrix.target }}
+      - name: No VC++ runtime needed, and it runs
+        shell: pwsh
+        run: |
+          $bin = "target\${{ matrix.target }}\dist\kumite_convert.exe"
+          if (Select-String -Path $bin -Pattern "VCRUNTIME140" -SimpleMatch -Quiet) { Write-Error "imports the VC++ runtime"; exit 1 }
+          & $bin --version
+      - name: Pack
+        shell: pwsh
+        run: |
+          $d = "kumite_convert-$env:TAG-${{ matrix.name }}"
+          New-Item -ItemType Directory $d | Out-Null
+          Copy-Item "target\${{ matrix.target }}\dist\kumite_convert.exe", README.md, LICENSE-MIT, LICENSE-APACHE, THIRD_PARTY_NOTICES.md $d
+          Compress-Archive $d "$d.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}
+          path: kumite_convert-*.zip
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - run: |
+          cargo build --profile dist -p convert --target aarch64-apple-darwin
+          cargo build --profile dist -p convert --target x86_64-apple-darwin
+      - name: Universal, and it runs
+        run: |
+          lipo -create -output kumite_convert target/aarch64-apple-darwin/dist/kumite_convert target/x86_64-apple-darwin/dist/kumite_convert
+          lipo -info kumite_convert
+          ./kumite_convert --version
+      - name: Pack
+        run: |
+          d=kumite_convert-$TAG-macos-universal
+          mkdir "$d" && cp kumite_convert README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
+          tar -czf "$d.tar.gz" "$d"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-universal
+          path: kumite_convert-*.tar.gz
+
+  wasm:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1, wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - name: WASI
+        run: |
+          cargo build --profile dist -p convert --target wasm32-wasip1
+          d=kumite_convert-$TAG-wasi
+          mkdir "$d" && cp target/wasm32-wasip1/dist/kumite_convert.wasm README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
+          zip -qr "$d.zip" "$d"
+      - name: The browser converter
+        run: |
+          mkdir -p target/tools/bin && ln -s "$(command -v wasm-bindgen)" target/tools/bin/wasm-bindgen
+          sh convert_web/build.sh
+          d=kumite_convert-$TAG-web
+          mkdir -p "$d/pkg" && cp web/convert.html web/convert_worker.js README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
+          cp web/pkg/convert_web* "$d/pkg/"
+          zip -qr "$d.zip" "$d"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wasm
+          path: kumite_convert-*.zip
+
+  release:
+    needs: [linux, windows, macos, wasm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<EOF
+          Converts your own Tekken 3 disc (and optionally Tekken 2 and Counter-Strike) into OpenKumite's game data:
+          \`kumite_convert --t3 "Tekken_3_(USA)_(Track 1).bin" OUT\` (the README has the rest).
+
+          | Download | For |
+          |---|---|
+          | \`kumite_convert-$TAG-linux-amd64.tar.gz\`, \`-linux-arm64\` | Linux, any distribution: one static file, nothing else needed |
+          | \`kumite_convert-$TAG-windows-amd64.zip\`, \`-windows-arm64\` | Windows 10 and 11 |
+          | \`kumite_convert-$TAG-macos-universal.tar.gz\` | macOS 11 and newer, Apple Silicon and Intel |
+          | \`kumite_convert-$TAG-wasi.zip\` | a WASI runtime (wasmtime; Node 24 or newer) |
+          | \`kumite_convert-$TAG-web.zip\` | the converter in the browser, to serve from a site |
+          | \`SHA256SUMS\` | the checksums of the files above |
+
+          The binaries are not signed. **macOS** blocks a downloaded program the first time: run
+          \`xattr -d com.apple.quarantine kumite_convert\`, or allow it in System Settings, Privacy & Security.
+          **Windows** may warn when it is started from Explorer: More info, Run anyway (or Unblock in the file's
+          Properties).
+          EOF
+          pre=""; [[ "$TAG" == *-* ]] && pre="--prerelease"
+          gh release create "$TAG" dist/* --verify-tag --title "kumite_convert $TAG" --notes-file notes.md --generate-notes $pre

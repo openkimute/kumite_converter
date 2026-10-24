@@ -83,7 +83,7 @@ fn node_matrix(n: &Value) -> Result<M4> {
 fn matmul(a: &M4, b: &M4) -> M4 {
     std::array::from_fn(|i| {
         std::array::from_fn(|j| {
-            a[i][2].mul_add(b[2][j], a[i][0] * b[0][j]) + a[i][3].mul_add(b[3][j], a[i][1] * b[1][j])
+            libm::fma(a[i][2], b[2][j], a[i][0] * b[0][j]) + libm::fma(a[i][3], b[3][j], a[i][1] * b[1][j])
         })
     })
 }
@@ -99,7 +99,7 @@ fn place(pos: &[V3], m: &M4) -> Vec<V3> {
                 let s = if i == odd_last {
                     p[0] * r[0] + p[1] * r[1] + p[2] * r[2]
                 } else {
-                    p[2].mul_add(r[2], p[1].mul_add(r[1], p[0] * r[0]))
+                    libm::fma(p[2], r[2], libm::fma(p[1], r[1], p[0] * r[0]))
                 };
                 s + r[3]
             })

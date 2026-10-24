@@ -1,5 +1,5 @@
 //! `np.linalg.svd` and `np.linalg.inv` of the converters' small float64 matrices, the same bits on every platform:
-//! only + - * / and sqrt in a fixed order (numpy's LAPACK and nalgebra go through the platform's BLAS or `hypot`).
+//! only + - * /, sqrt and fma in a fixed order (numpy's LAPACK and nalgebra go through the platform's BLAS or `hypot`).
 //! Holds no game knowledge: both converters use it.
 #![allow(clippy::needless_range_loop)] // matrix indices
 
@@ -123,6 +123,24 @@ pub fn inv4(m: &M4) -> Option<M4> {
     Some(x)
 }
 
+/// `a * b + c` rounded once (numpy's fused products), the same bits everywhere: the CPU's FMA where it has one, else
+/// libm's. Never `f64::mul_add` alone: without FMA in the target it calls the platform's `fma`, and Windows x64's
+/// static C runtime rounds that twice; libm's software one is correct but slow, so x86_64 checks the CPU.
+#[inline]
+pub fn fma(a: f64, b: f64, c: f64) -> f64 {
+    #[cfg(target_arch = "x86_64")]
+    if std::is_x86_feature_detected!("fma") {
+        // (with the feature on, mul_add is the vfmadd instruction)
+        #[target_feature(enable = "fma")]
+        fn hw(a: f64, b: f64, c: f64) -> f64 {
+            a.mul_add(b, c)
+        }
+        // SAFETY: the CPU has FMA (checked just above)
+        return unsafe { hw(a, b, c) };
+    }
+    libm::fma(a, b, c)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -203,5 +221,23 @@ mod tests {
         let r = [[0.0, -1.0, 0.0, 0.25], [1.0, 0.0, 0.0, -1.5], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
         let x = inv4(&r);
         assert_eq!(x, Some([[0.0, 1.0, 0.0, 1.5], [-1.0, 0.0, 0.0, 0.25], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]));
+    }
+
+    /// The CPU's FMA (where fma uses it) gives libm's bits; a case a double rounding gets wrong.
+    #[test]
+    fn fma_rounds_once() {
+        let mut x: u64 = 0x9E3779B97F4A7C15;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            f64::from_bits((x >> 12) | 0x3FF0_0000_0000_0000) - 1.5
+        };
+        for _ in 0..100_000 {
+            let (a, b, c) = (next(), next() * 1e3, next());
+            assert_eq!(fma(a, b, c).to_bits(), libm::fma(a, b, c).to_bits(), "{a:e} * {b:e} + {c:e}");
+        }
+        let (a, b, c) = (1.0478027277614266e-1, 3.502574670373677e2, 3.6587992443022754e-1);
+        assert_eq!(fma(a, b, c), 3.706595286248641e1);
     }
 }

@@ -1,12 +1,16 @@
 //! `kumite_convert --t3 BIN [--t2 BIN] [--cs GAME_DIR] [--jobs N] OUT`: everything OpenKumite needs, in one run.
 //! The CD-audio tracks are found beside each track 1 ("Track 1" → "Track 2", "Track 3"). `--pack DIR` instead of
 //! OUT writes the browser's pack (DIR/assets.pack, DIR/assets.idx; an interrupted run resumes);
-//! `kumite_convert unpack DIR OUT` writes a pack's files out as a folder.
+//! `kumite_convert unpack DIR OUT` writes a pack's files out as a folder; `kumite_convert --version`.
 
 use anyhow::{Context, Result, bail};
 use conv_io::{Ctx, DiscFile, PackVfs, StdDisc, StdFs, StdStore, Vfs, join};
 use convert::{Disc, Inputs};
 use std::path::{Path, PathBuf};
+
+#[cfg(target_env = "musl")]
+#[global_allocator]
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -17,7 +21,7 @@ fn main() {
 }
 
 const USAGE: &str = "usage: kumite_convert --t3 BIN [--t2 BIN] [--cs GAME_DIR] [--jobs N] (OUT | --pack DIR)\n       \
-                     kumite_convert unpack DIR OUT";
+                     kumite_convert unpack DIR OUT\n       kumite_convert --version";
 
 /// track 1 and the tracks beside it that exist
 fn disc(track1: &str, tracks: usize) -> Result<Disc> {
@@ -49,6 +53,12 @@ fn copy_tree(from: &dyn Vfs, to: &dyn Vfs, dir: &str) -> Result<()> {
 }
 
 fn run(args: &[String]) -> Result<()> {
+    if let [flag] = args
+        && flag == "--version"
+    {
+        println!("kumite_convert {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     if let [cmd, pack, out] = args
         && cmd == "unpack"
     {

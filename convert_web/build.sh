@@ -7,8 +7,8 @@ set -e
 cd "$(dirname "$0")/.."
 rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 [ -x target/tools/bin/wasm-bindgen ] || cargo install wasm-bindgen-cli --version 0.2.129 --root target/tools
-wasm=target/wasm32-unknown-unknown/release/convert_web.wasm
-cargo build --release --target wasm32-unknown-unknown -p convert_web
+wasm=target/wasm32-unknown-unknown/web/convert_web.wasm
+cargo build --profile web --target wasm32-unknown-unknown -p convert_web
 target/tools/bin/wasm-bindgen --target web --no-typescript --out-dir web/pkg --out-name convert_web_jspi "$wasm"
-cargo build --release --target wasm32-unknown-unknown -p convert_web --no-default-features
+cargo build --profile web --target wasm32-unknown-unknown -p convert_web --no-default-features
 target/tools/bin/wasm-bindgen --target web --no-typescript --out-dir web/pkg "$wasm"

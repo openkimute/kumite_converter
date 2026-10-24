@@ -34,3 +34,6 @@ t2_viewer/stages
 
 # agents' git worktrees
 .claude/worktrees/
+
+# Release files (dist.sh)
+/dist

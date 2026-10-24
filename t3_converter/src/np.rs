@@ -24,7 +24,7 @@ pub fn gemm(a: &[f64], ta: bool, b: &[f64], tb: bool, m: usize, n: usize, k: usi
             c[i * n + j] = (0..k).fold(0.0, |s, l| {
                 let x = if ta { a[l * m + i] } else { a[i * k + l] };
                 let y = if tb { b[j * k + l] } else { b[l * n + j] };
-                x.mul_add(y, s)
+                np_portable::fma(x, y, s)
             });
         }
     }
@@ -45,7 +45,11 @@ pub fn mm(a: &M3, ta: bool, b: &M3, tb: bool) -> M3 {
 pub fn mv(a: &M3, ta: bool, v: &V3) -> V3 {
     [0, 1, 2].map(|i| {
         let a = |k: usize| if ta { a[k][i] } else { a[i][k] };
-        if ta { (0..3).fold(0.0, |s, k| a(k).mul_add(v[k], s)) } else { (0..3).fold(0.0, |s, k| s + a(k) * v[k]) }
+        if ta {
+            (0..3).fold(0.0, |s, k| np_portable::fma(a(k), v[k], s))
+        } else {
+            (0..3).fold(0.0, |s, k| s + a(k) * v[k])
+        }
     })
 }
 
