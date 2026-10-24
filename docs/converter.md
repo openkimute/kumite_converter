@@ -144,10 +144,12 @@ OUT) into the site's OPFS (`?clear` removes it).
   into when served from the same site.
 - **Firefox and Safari: the browser's storage.** The page checks the space before it starts (about 1.5 GB for
   Tekken 3, up to about 4.2 GB with both extras). If the page is closed or reloaded, the conversion resumes from the
-  last finished step. **Delete it** removes it.
+  last finished step. **Save as .tar** downloads the converted game (`web/tar.js`: a tar of `assets/`,
+  the command line's tree, built from slices of the pack without reading it into memory; macOS, Linux and Windows
+  10 or newer unpack it), for OpenKumite's per-user folder or any other. **Delete it** removes it.
 - **Time:** about 5 minutes for Tekken 3, 10 with both extras (on a recent desktop).
 - The browser's storage is the site's: OpenKumite's browser page reads it only when served from the same site. To
-  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/background.webp` and `web/pkg/convert_web*` into
+  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/tar.js`, `web/background.webp` and `web/pkg/convert_web*` into
   OpenKumite's `web/` and `web/pkg/` (no name clashes) and serve them together.
 - Needs a current Chrome, Edge, Firefox or Safari (17 or newer); not a private window.
 - **iPhone and iPad:** first add the page to the Home Screen and convert inside that app. Safari may delete a web
