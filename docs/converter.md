@@ -132,6 +132,10 @@ OUT) into the site's OPFS (`?clear` removes it).
 
 - **Pick:** the Tekken 3 image's track 1 (and track 2 for the CD music); optionally the Tekken 2 tracks; optionally
   the Counter-Strike folder (the one holding `cstrike/` and `valve/`), picked or dropped.
+- **Languages:** English, Español, Português, Français, Deutsch, Русский, Українська, 中文, 日本語, 한국어, Türkçe
+  and العربية (right to left). The page starts in the browser's language (else English); the menu in the panel's
+  corner changes it, remembered in the browser; `?lang=xx` in the link picks one. The text is in `web/i18n.js`, one
+  table per language under the same keys (English the fallback): a translation is fixed or a language added there.
 - **Start, then Cancel:** the bar follows each step's share of the time (`WEIGHT` in `convert.html`, measured with
   `kumite_convert --jobs 1`: the browser's converter is one thread too). Cancel stops the worker: the browser's
   storage keeps the finished steps (Start goes on from there), a folder is converted again from the beginning.
@@ -149,7 +153,7 @@ OUT) into the site's OPFS (`?clear` removes it).
   10 or newer unpack it), for OpenKumite's per-user folder or any other. **Delete it** removes it.
 - **Time:** about 5 minutes for Tekken 3, 10 with both extras (on a recent desktop).
 - The browser's storage is the site's: OpenKumite's browser page reads it only when served from the same site. To
-  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/tar.js`, `web/background.webp` and `web/pkg/convert_web*` into
+  play such a conversion, copy `web/convert.html`, `web/convert_worker.js`, `web/i18n.js`, `web/tar.js`, `web/background.webp` and `web/pkg/convert_web*` into
   OpenKumite's `web/` and `web/pkg/` (no name clashes) and serve them together.
 - Needs a current Chrome, Edge, Firefox or Safari (17 or newer); not a private window.
 - **iPhone and iPad:** first add the page to the Home Screen and convert inside that app. Safari may delete a web
