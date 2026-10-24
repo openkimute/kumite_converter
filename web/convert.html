@@ -114,7 +114,7 @@
 <main>
   <h1>Kumite <span>Converter</span></h1>
   <p class="sub">Your own discs into OpenKumite's game, in the browser: nothing is uploaded. <span id="where">Kept in
-    this browser's storage</span> (1.6 GB; 4.2 GB with both extras).</p>
+    this browser's storage (Save as .tar gets the files)</span> (1.6 GB; 4.2 GB with both extras).</p>
   <div class="msgs"><div id="checks">Checking the browser…</div><div id="state"></div></div>
 
   <fieldset id="inputs" class="rows">
@@ -147,12 +147,14 @@
   <div id="error" role="alert"></div>
   <div class="links">
     <button id="check">Check the converted game</button>
+    <button id="save" hidden>Save as .tar</button>
     <button id="remove">Delete it</button>
     <details id="details"><summary>Log</summary><div id="log"></div></details>
   </div>
 </main>
 <footer>Unofficial. Not affiliated with Bandai Namco, Sony or Valve. Use your own legally obtained copies.</footer>
 <script type="module">
+  import { tarBlob } from './tar.js';
   const $ = (id) => document.getElementById(id);
   const GB = 1e9;
   const say = (m) => { $('status').textContent = m; };
@@ -326,7 +328,7 @@
       const idx = JSON.parse(await (await (await root.getFileHandle('assets.idx')).getFile()).text());
       const data = await (await root.getFileHandle('assets.pack')).getFile();
       const read = (path) => idx.files[path] && data.slice(idx.files[path][0], idx.files[path][0] + idx.files[path][1]).text();
-      return { idx, read, size: data.size };
+      return { idx, read, data, size: data.size };
     } catch { return null; }
   };
 
@@ -338,6 +340,7 @@
     }
     const p = await pack();
     const manifest = p && (await p.read('manifest.json'));
+    $('save').hidden = !manifest;
     if (manifest) {
       $('state').textContent = `A converted game is here (fingerprint ${JSON.parse(manifest).fingerprint}): open it with OpenKumite.`;
     } else if (p?.idx.done?.length) {
@@ -373,7 +376,7 @@
     $('go').textContent = on ? 'Cancel' : 'Start';
     $('go').classList.toggle('cancel', on);
     $('inputs').disabled = on;
-    $('check').disabled = $('remove').disabled = on;
+    $('check').disabled = $('remove').disabled = $('save').disabled = on;
     document.body.classList.toggle('running', on);
     clearInterval(ticker);
     if (on) ticker = setInterval(tick, 250);
@@ -432,7 +435,8 @@
     if (r.done) {
       setBar(1);
       say(`Done in ${took}. Fingerprint ${r.done}.`);
-      $('state').innerHTML = `The game is converted${dir ? ` into "${esc(dir.name)}"` : ''} (fingerprint ${r.done}): open it with OpenKumite.`;
+      $('state').innerHTML = `The game is converted${dir ? ` into "${esc(dir.name)}"` : ''} (fingerprint ${r.done}): ${dir ? 'open it with OpenKumite' : 'open it with OpenKumite here, or Save as .tar for the files'}.`;
+      if (!dir) $('save').hidden = false;
     } else if (r.cancelled) {
       say(`Cancelled after ${took}. ${dir ? 'Start converts again from the beginning.' : 'The finished steps are kept: Start goes on from there.'}`);
       await showState();
@@ -463,6 +467,21 @@
     stop = null;
     say(r.error ? '' : `Fingerprint ${r.fingerprint} (${Math.round(performance.now() - t0)} ms).`);
     fail(r.error ? `No converted game: ${r.error}` : '');
+  };
+  // the converted game out of the browser's storage: a tar of assets/ (the command line's tree), saved as a download
+  $('save').onclick = async () => {
+    if (busy) return;
+    fail('');
+    const p = await pack();
+    if (!p || !(await p.read('manifest.json'))) return fail('No converted game in this browser: convert first.');
+    const tar = tarBlob(p.idx, p.data);
+    const url = URL.createObjectURL(tar);
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'openkumite-assets.tar' });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000); // (the browser reads it while it saves)
+    say(`Saving openkumite-assets.tar (${(tar.size / GB).toFixed(1)} GB): unpack it, and its assets/ folder is the converted game.`);
   };
   $('remove').onclick = async () => {
     if (busy || !confirm('Delete the converted game from this browser?')) return;

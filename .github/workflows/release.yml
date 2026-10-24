@@ -144,7 +144,7 @@ jobs:
           mkdir -p target/tools/bin && ln -s "$(command -v wasm-bindgen)" target/tools/bin/wasm-bindgen
           sh convert_web/build.sh
           d=kumite_convert-$TAG-web
-          mkdir -p "$d/pkg" && cp web/convert.html web/convert_worker.js web/background.webp README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
+          mkdir -p "$d/pkg" && cp web/convert.html web/convert_worker.js web/tar.js web/background.webp README.md LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "$d/"
           cp web/pkg/convert_web* "$d/pkg/"
           zip -qr "$d.zip" "$d"
       - uses: actions/upload-artifact@v7
