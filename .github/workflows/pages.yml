@@ -37,7 +37,7 @@ jobs:
           mkdir -p target/tools/bin && ln -sf "$(command -v wasm-bindgen)" target/tools/bin/wasm-bindgen
           sh convert_web/build.sh
           mkdir -p _site/pkg
-          cp web/convert.html web/convert_worker.js web/tar.js web/background.webp _site/
+          cp web/convert.html web/convert_worker.js web/i18n.js web/tar.js web/background.webp _site/
           cp web/convert.html _site/index.html
           cp web/pkg/convert_web* _site/pkg/
           ls -l _site _site/pkg
